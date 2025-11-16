@@ -49,7 +49,7 @@ def main() -> None:
         num_objectives=1,
         num_constraints=0,
         sample_strategy="bo",
-        surrogate_type="gp",
+        surrogate_type="gp",  # TODO: random forest
         acq_type="ei",
         max_runs=1000,
     )

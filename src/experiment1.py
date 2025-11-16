@@ -69,10 +69,16 @@ def main() -> None:
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
 
+    # virtual_patient = {
+    #     kinetic_constant: 10**value
+    #     for kinetic_constant, value in kinetic_constants.items()
+    # }
+
     try:
         loss = plot_blackbox(
             document=biological_model.document,
             virtual_patient=biological_model.virtual_patient_generator(),
+            # virtual_patient=virtual_patient,
             environment=biological_model.environment_generator(),
             species_partial_order=biological_scenario_definition.constraints,
         )

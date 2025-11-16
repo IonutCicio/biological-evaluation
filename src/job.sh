@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -a
-source .env
+source $HOME.env
 set +a
 
 cd $CLUSTER_PROJECT_PATH 

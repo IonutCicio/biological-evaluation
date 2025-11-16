@@ -65,16 +65,16 @@ class BaseKineticLaw(Enum):
                 formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.INPUT)))})"
 
                 formula_reverse_reaction: str = ""
-                if reaction.is_reversible:
-                    reverse_kinetic_constant: libsbml.Parameter = (
-                        sbml_model.createParameter()
-                    )
-                    reverse_kinetic_constant.setValue(0.0)
-                    reverse_kinetic_constant.setId(f"k_r_{reaction}")
-                    reverse_kinetic_constant.setConstant(True)
-                    kinetic_constants.add(reverse_kinetic_constant.getId())
-
-                    formula_reverse_reaction = f"- ({reverse_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.OUTPUT)))})"
+                # if reaction.is_reversible:
+                #     reverse_kinetic_constant: libsbml.Parameter = (
+                #         sbml_model.createParameter()
+                #     )
+                #     reverse_kinetic_constant.setValue(0.0)
+                #     reverse_kinetic_constant.setId(f"k_r_{reaction}")
+                #     reverse_kinetic_constant.setConstant(True)
+                #     kinetic_constants.add(reverse_kinetic_constant.getId())
+                #
+                #     formula_reverse_reaction = f"- ({reverse_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.OUTPUT)))})"
 
                 formula_hill_component: str = ""
                 modifiers_functions: list[str] = []
@@ -189,11 +189,6 @@ class BiologicalScenarioDefinition:
             f"WHERE {_network_reaction} IN reactionsOfInterest"
         )
 
-        collect_network_reactions: LiteralString = f"""
-        WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
-        UNWIND networkReactions AS {_network_reaction}
-        """
-
         query_network_reaction_inputs: LiteralString = f"""
         CALL {{
             WITH {_network_reaction}
@@ -271,30 +266,6 @@ class BiologicalScenarioDefinition:
         }}
         """
 
-        query_network_reaction_inputs_which_are_network_inputs: LiteralString = f"""
-        CALL {{
-            WITH {_network_reaction}, networkReactions
-            MATCH ({_network_reaction})-[:input]->({_network_physical_entity}:PhysicalEntity)
-            WHERE NOT EXISTS {{
-                MATCH ({_network_physical_entity})<-[:output]-(frontierReactionLikeEvent:ReactionLikeEvent)
-                WHERE frontierReactionLikeEvent IN networkReactions
-            }}
-            RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkInputs
-        }}
-        """
-
-        query_network_reaction_outputs_which_are_network_outputs: LiteralString = f"""
-        CALL {{
-            WITH {_network_reaction}, networkReactions
-            MATCH ({_network_reaction})-[:output]->({_network_physical_entity}:PhysicalEntity)
-            WHERE NOT EXISTS {{
-                MATCH ({_network_physical_entity})<-[:input]-(frontierReactionLikeEvent:ReactionLikeEvent)
-                WHERE frontierReactionLikeEvent IN networkReactions
-            }}
-            RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkOutputs
-        }}
-        """
-
         query_is_network_reaction_reversible: LiteralString = f"""
         CALL {{
             WITH {_network_reaction}
@@ -324,11 +295,40 @@ class BiologicalScenarioDefinition:
         }}
         """
 
+        query_network_inputs: LiteralString = """
+        CALL {
+            WITH networkReactions, networkPhysicalEntities
+            MATCH (physicalEntity:PhysicalEntity)
+            WHERE
+                physicalEntity.dbId IN networkPhysicalEntities AND
+                NOT EXISTS {
+                    MATCH (physicalEntity)<-[:output]-(reactionLikeEvent:ReactionLikeEvent)
+                    WHERE reactionLikeEvent IN networkReactions
+                }
+            RETURN COLLECT(physicalEntity.dbId) AS networkInputs
+        }
+        """
+
+        query_network_outputs: LiteralString = """
+        CALL {
+            WITH networkReactions, networkPhysicalEntities
+            MATCH (physicalEntity:PhysicalEntity)
+            WHERE
+                physicalEntity.dbId IN networkPhysicalEntities AND
+                NOT EXISTS {
+                    MATCH (physicalEntity)<-[:input]-(reactionLikeEvent:ReactionLikeEvent)
+                    WHERE reactionLikeEvent IN networkReactions
+                }
+            RETURN COLLECT(physicalEntity.dbId) AS networkOutputs
+        }
+        """
+
         query: LiteralString = f"""
         {query_reactions_of_interest_subset if self.pathways else ""}
         {query_transitive_closure_of_scenario}
         {filter_reactions_of_interest if self.pathways else ""}
-        {collect_network_reactions}
+        WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
+        UNWIND networkReactions AS {_network_reaction}
         {query_network_reaction_inputs}
         {query_network_reaction_outputs}
         {query_network_reaction_enzymes}
@@ -337,18 +337,64 @@ class BiologicalScenarioDefinition:
         {query_network_reaction_compartments}
         {query_is_network_reaction_reversible}
         {query_expand_reaction_physical_entities_information}
-        {query_network_reaction_inputs_which_are_network_inputs}
-        {query_network_reaction_outputs_which_are_network_outputs}
-        RETURN
+        WITH
             COLLECT({{
                 id: {_network_reaction}.dbId,
                 physical_entities: physicalEntities,
-                reverse_reaction: reverseReactionLikeEvent,
                 compartments: compartments
-            }}) AS reactions,
-            COLLECT(reactionNetworkInputs) AS networkInputs,
-            COLLECT(reactionNetworkOutputs) AS networkOutputs;
+            }}) AS networkReactionsDetails,
+            networkReactions
+        UNWIND networkReactionsDetails AS {_network_reaction}
+        UNWIND {_network_reaction}.physical_entities AS {_network_physical_entity}
+        WITH
+            networkReactionsDetails,
+            networkReactions,
+            apoc.convert.toSet(
+                apoc.coll.flatten(
+                    COLLECT({_network_physical_entity}.id)
+                )
+            ) AS networkPhysicalEntities
+        {query_network_inputs}
+        {query_network_outputs}
+        RETURN networkReactionsDetails, networkInputs, networkOutputs
         """
+
+        # query_network_reaction_inputs_which_are_network_inputs: LiteralString = f"""
+        # CALL {{
+        #     WITH {_network_reaction}, networkReactions
+        #     MATCH ({_network_reaction})-[:input]->({_network_physical_entity}:PhysicalEntity)
+        #     WHERE NOT EXISTS {{
+        #         MATCH ({_network_physical_entity})<-[:output]-(frontierReactionLikeEvent:ReactionLikeEvent)
+        #         WHERE frontierReactionLikeEvent IN networkReactions
+        #     }}
+        #     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkInputs
+        # }}
+        # """
+        #
+        # query_network_reaction_outputs_which_are_network_outputs: LiteralString = f"""
+        # CALL {{
+        #     WITH {_network_reaction}, networkReactions
+        #     MATCH ({_network_reaction})-[:output]->({_network_physical_entity}:PhysicalEntity)
+        #     WHERE NOT EXISTS {{
+        #         MATCH ({_network_physical_entity})<-[:input]-(frontierReactionLikeEvent:ReactionLikeEvent)
+        #         WHERE frontierReactionLikeEvent IN networkReactions
+        #     }}
+        #     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkOutputs
+        # }}
+        # """
+
+        # UNWIND networkReactions AS {_network_reaction}
+        # reverse_reaction: reverseReactionLikeEvent,
+
+        # collect_network_reactions: LiteralString = f"""
+        # WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
+        # UNWIND networkReactions AS {_network_reaction}
+        # """
+
+        # {query_network_reaction_inputs_which_are_network_inputs}
+        # {query_network_reaction_outputs_which_are_network_outputs}
+        # COLLECT(reactionNetworkInputs) AS networkInputs,
+        # COLLECT(reactionNetworkOutputs) AS networkOutputs;
 
         records: list[neo4j.Record]
         records, _, _ = neo4j_driver.execute_query(
@@ -372,14 +418,14 @@ class BiologicalScenarioDefinition:
                     return ModifierRole(obj["role"])
 
         input_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, itertools.chain(*records[0]["networkInputs"]))
+            map(ReactomeDbId, itertools.chain(records[0]["networkInputs"]))
         )
 
         output_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, itertools.chain(*records[0]["networkOutputs"]))
+            map(ReactomeDbId, itertools.chain(records[0]["networkOutputs"]))
         )
 
-        rows: list[dict[str, Any]] = records[0]["reactions"]
+        rows: list[dict[str, Any]] = records[0]["networkReactionsDetails"]
         reaction_like_events: set[ReactionLikeEvent] = {
             ReactionLikeEvent(
                 id=ReactomeDbId(reaction["id"]),
@@ -391,7 +437,7 @@ class BiologicalScenarioDefinition:
                     for obj in reaction["physical_entities"]
                 },
                 compartments=set(map(Compartment, reaction["compartments"])),
-                is_reversible=bool(reaction["reverse_reaction"]),
+                # is_reversible=bool(reaction["reverse_reaction"]),
             )
             for reaction in rows
         }
@@ -415,6 +461,14 @@ class BiologicalScenarioDefinition:
             set[Compartment](),
         )
 
+        # input_physical_entities = (
+        #     input_physical_entities - output_physical_entities
+        # )
+        # input_physical_entities = {1}
+        # output_physical_entities = {1}
+        # TODO: include in transitive closure reverse reactions!
+        # print("| inp |", input_physical_entities, "|")
+        # print("| out |", output_physical_entities, "|")
         return BiologicalScenarioDefinition._BiologicalNetwork(
             input_physical_entities=input_physical_entities,
             output_physical_entities=output_physical_entities,
@@ -478,8 +532,8 @@ class BiologicalScenarioDefinition:
                     species.setBoundaryCondition(False)
                     species.setHasOnlySubstanceUnits(False)
                     # species.setInitialAmount(0.5)
-                    species.setInitialConcentration(0.5)
-                    species.setHasOnlySubstanceUnits(False)
+                    species.setInitialConcentration(0.0)
+                    # species.setHasOnlySubstanceUnits(False)
 
                     species_mean: libsbml.Parameter = (
                         sbml_model.createParameter()
@@ -497,7 +551,13 @@ class BiologicalScenarioDefinition:
 
                     environment_physical_entities.add(obj)
 
-                    if obj.id in biological_network.input_physical_entities:
+                    if (
+                        obj.id in biological_network.input_physical_entities
+                        and obj.id
+                        in biological_network.output_physical_entities
+                    ):
+                        species.setInitialConcentration(0.9)
+                    elif obj.id in biological_network.input_physical_entities:
                         frontier_reaction: libsbml.Reaction = (
                             sbml_model.createReaction()
                         )
@@ -527,8 +587,7 @@ class BiologicalScenarioDefinition:
                                 f"({kinetic_constant.getId()})"
                             )
                         )
-
-                    if obj.id in biological_network.output_physical_entities:
+                    elif obj.id in biological_network.output_physical_entities:
                         frontier_reaction: libsbml.Reaction = (
                             sbml_model.createReaction()
                         )
