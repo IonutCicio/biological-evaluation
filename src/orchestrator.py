@@ -32,10 +32,10 @@ def main() -> None:
             space.Real(
                 name=kinetic_constant,
                 lower=-20.0,
-                upper=0.0 if "k_h_" in kinetic_constant else 20.0,
+                upper=20.0,
                 default_value=0.0,
             )
-            for kinetic_constant in biological_model.virtual_patient_generator.kinetic_constants
+            for kinetic_constant in biological_model.kinetic_constants
         ]
     )
 
@@ -49,10 +49,13 @@ def main() -> None:
         num_objectives=1,
         num_constraints=0,
         sample_strategy="bo",
-        surrogate_type="gp",  # TODO: random forest
+        surrogate_type="prf",
         acq_type="ei",
         max_runs=1000,
     )
+
+    # TODO: random forest
+    # upper=0.0 if "k_h_" in kinetic_constant else 20.0,
 
     _ = BurstPolicy(
         args=f"--task {remote_advisor.task_id} --file {model_file}",

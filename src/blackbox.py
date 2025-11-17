@@ -29,10 +29,21 @@ def _blackbox(
                 if (
                     repr(l) in kinetic_constant_1
                     and repr(r) in kinetic_constant_2
+                    and "f_" in kinetic_constant_1
+                    and "f_" in kinetic_constant_2
                     and virtual_patient[kinetic_constant_1]
                     > virtual_patient[kinetic_constant_2]
                 ):
-                    print("BAD")
+                    print(
+                        "k1",
+                        kinetic_constant_1,
+                        "\nk2",
+                        kinetic_constant_2,
+                        "\nk1_v",
+                        virtual_patient[kinetic_constant_1],
+                        "\nk2_v",
+                        virtual_patient[kinetic_constant_2],
+                    )
                     raise ViolatedKineticConstantsPartialOrderError
 
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(

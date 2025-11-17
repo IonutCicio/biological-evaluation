@@ -72,7 +72,7 @@ def main() -> None:
     try:
         loss = blackbox_with_plot(
             document=biological_model.document,
-            virtual_patient=biological_model.virtual_patient_generator(),
+            virtual_patient=biological_model(),
             physical_entities_constraints=biological_model.physical_entities_constraints,
             kinetic_constants_constraints=biological_model.kinetic_constants_constraints,
         )

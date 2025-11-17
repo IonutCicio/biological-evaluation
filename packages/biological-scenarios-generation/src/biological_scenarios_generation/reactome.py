@@ -99,7 +99,7 @@ class SpeciesMetadata:
 
 
 class ModifierCategory(StrEnum):
-    ENZYME = auto()
+    CATALYST = auto()
     POSITIVE_REGULATOR = auto()
     NEGATIVE_REGULATOR = auto()
 

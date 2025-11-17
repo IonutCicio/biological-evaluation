@@ -1,3 +1,15 @@
+# """Definition of a target scenario to expand for simulations."""
+# network_physical_entity: LiteralString = "networkPhysicalEntity"
+# network_compartment: LiteralString = "networkCompartment"
+
+# network_reaction_physical_entity: LiteralString = (
+#     "networkReactionPhysicalEntity"
+# )
+# network_reaction_physical_entities: LiteralString = (
+#     "networkReactionPhysicalEntities"
+# )
+# category: LiteralString = "category"
+
 # kinetic_constant: 10 ** random.uniform(-20, 0)
 # if "half" in kinetic_constant or "k_h_" in kinetic_constant
 # else 10 ** random.uniform(-20, 20)

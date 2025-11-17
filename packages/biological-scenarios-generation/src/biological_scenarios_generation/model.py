@@ -19,8 +19,8 @@ VirtualPatient: TypeAlias = dict[SId, float]
 class BiologicalModel:
     document: libsbml.SBMLDocument
     kinetic_constants: set[SId]
-    physical_entities_constraints: PartialOrder[PhysicalEntity]
     kinetic_constants_constraints: PartialOrder[DatabaseObject]
+    physical_entities_constraints: PartialOrder[PhysicalEntity]
 
     @staticmethod
     def load(document: libsbml.SBMLDocument) -> "BiologicalModel":
