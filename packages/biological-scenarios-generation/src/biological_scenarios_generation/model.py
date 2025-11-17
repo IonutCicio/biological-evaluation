@@ -17,7 +17,7 @@ VirtualPatient: TypeAlias = dict[SId, float]
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class BiologicalModel:
-    document: libsbml.SBMLDocument
+    sbml_document: libsbml.SBMLDocument
     kinetic_constants: set[SId]
     kinetic_constants_constraints: PartialOrder[DatabaseObject]
     physical_entities_constraints: PartialOrder[PhysicalEntity]
@@ -25,7 +25,7 @@ class BiologicalModel:
     @staticmethod
     def load(document: libsbml.SBMLDocument) -> "BiologicalModel":
         return BiologicalModel(
-            document=document,
+            sbml_document=document,
             kinetic_constants={
                 p.getId()
                 for p in document.getModel().getListOfParameters()

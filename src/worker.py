@@ -67,10 +67,11 @@ def main() -> None:
         url=OPENBOX_URL,
         task_id=openbox_task_id,
         config_dict=suggestion,
-        objectives=[loss]
-        if loss
-        else [
-            len(biological_model.environment_generator.physical_entities) * 2
+        objectives=[
+            loss
+            if loss
+            else len(biological_model.sbml_document.getModel().getNumSpecies())
+            * 10
         ],
         constraints=[],
         trial_info=trial_info,

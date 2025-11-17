@@ -61,7 +61,9 @@ def main() -> None:
             )
 
         with model_path.open("w") as file:
-            _ = file.write(libsbml.writeSBMLToString(biological_model.document))
+            _ = file.write(
+                libsbml.writeSBMLToString(biological_model.sbml_document)
+            )
     except ServiceUnavailable:
         assert model_path.exists()
         assert model_path.is_file()
@@ -71,7 +73,7 @@ def main() -> None:
 
     try:
         loss = blackbox_with_plot(
-            document=biological_model.document,
+            document=biological_model.sbml_document,
             virtual_patient=biological_model(),
             physical_entities_constraints=biological_model.physical_entities_constraints,
             kinetic_constants_constraints=biological_model.kinetic_constants_constraints,

@@ -432,6 +432,7 @@ class BiologicalScenarioDefinition:
             network=physical_entities | reaction_like_events | compartments,
         )
 
+    # TODO: save the constraints in annotations in the file!
     def generate_biological_model(
         self, driver: neo4j.Driver
     ) -> BiologicalModel:
@@ -442,6 +443,22 @@ class BiologicalScenarioDefinition:
         sbml_model.setTimeUnits("second")
         sbml_model.setExtentUnits("mole")
         sbml_model.setSubstanceUnits("mole")
+
+        RDF: libsbml.XMLNode = libsbml.RDFAnnotationParser.createRDFAnnotation()
+        # TODO: store the constraints here!
+        # TODO: maybe do it in two child nodes
+        constraints: str = f"[{' '.join([1, 2, 3])}]"
+        kinetic_constants_constraints_node: libsbml.XMLNode = (
+            libsbml.XMLNode.convertStringToXMLNode(f"<p>{constraints}</p>")
+        )
+        physical_entities_constraints_node: libsbml.XMLNode = (
+            libsbml.XMLNode.convertStringToXMLNode("<p>ciao!</p>")
+        )
+        _ = RDF.addChild(kinetic_constants_constraints_node)
+        _ = RDF.addChild(physical_entities_constraints_node)
+        annot: libsbml.XMLNode = libsbml.RDFAnnotationParser.createAnnotation()
+        _ = annot.addChild(RDF)
+        sbml_model.setAnnotation(annot)
 
         default_compartment: libsbml.Compartment = (
             sbml_model.createCompartment()
@@ -461,7 +478,6 @@ class BiologicalScenarioDefinition:
         time_rule.setVariable("time_")
         time_rule.setFormula("1")
 
-        # environment_physical_entities = set[PhysicalEntity]()
         kinetic_constants = set[SId]()
         kinetic_constants_constraints = PartialOrder[DatabaseObject]()
         biological_network: BiologicalScenarioDefinition._BiologicalNetwork = (
@@ -623,7 +639,7 @@ class BiologicalScenarioDefinition:
                             )
 
         return BiologicalModel(
-            document=sbml_document,
+            sbml_document=sbml_document,
             kinetic_constants=kinetic_constants,
             physical_entities_constraints=self.constraints,
             kinetic_constants_constraints=kinetic_constants_constraints,
