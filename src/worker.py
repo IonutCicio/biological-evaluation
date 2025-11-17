@@ -52,8 +52,8 @@ def main() -> None:
                 kinetic_constant: 10**value
                 for kinetic_constant, value in suggestion.items()
             },
-            environment=biological_model.environment_generator(),
-            species_partial_order=set(),
+            physical_entities_constraints=set(),
+            kinetic_constants_constraints=set(),
         )
     blackbox_end_time = datetime.datetime.now(tz=datetime.UTC)
 
