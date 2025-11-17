@@ -15,7 +15,7 @@ from biological_scenarios_generation.scenario import (
 )
 from neo4j.exceptions import ServiceUnavailable
 
-from blackbox import plot_blackbox
+from blackbox import blackbox_with_plot
 
 NEO4J_URL_REACTOME = "neo4j://localhost:7687"
 AUTH = ("noe4j", "neo4j")
@@ -39,7 +39,7 @@ def main() -> None:
         BiologicalScenarioDefinition(
             physical_entities={nitric_oxide, cyclic_amp},
             pathways={signal_transduction},
-            ignored_physical_entities={
+            excluded_physical_entities={
                 adenosine_triphsphate,
                 adenosine_diphsphate,
             },
@@ -69,22 +69,17 @@ def main() -> None:
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
 
-    # virtual_patient = {
-    #     kinetic_constant: 10**value
-    #     for kinetic_constant, value in kinetic_constants.items()
-    # }
-
     try:
-        loss = plot_blackbox(
+        loss = blackbox_with_plot(
             document=biological_model.document,
             virtual_patient=biological_model.virtual_patient_generator(),
-            # virtual_patient=virtual_patient,
-            environment=biological_model.environment_generator(),
-            species_partial_order=biological_scenario_definition.constraints,
+            physical_entities_constraints=biological_model.physical_entities_constraints,
+            kinetic_constants_constraints=biological_model.kinetic_constants_constraints,
         )
         logger.info(loss)
-    except:
-        logger.info(float("+inf"))
+    except Exception:
+        logger.exception("")
+        logger.info("inf")
 
 
 if __name__ == "__main__":

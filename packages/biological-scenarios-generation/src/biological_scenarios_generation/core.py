@@ -7,26 +7,14 @@ PartialOrder: TypeAlias = set[tuple[T, T]]
 
 
 class IntGEZ(int):
-    """int greater or equal to 0."""
-
     def __new__(cls, value: int) -> Self:
         assert value >= 0
         return super().__new__(cls, value)
 
 
 class IntGTZ(int):
-    """int greater than 0."""
-
     def __new__(cls, value: int) -> Self:
         assert value > 0
-        return super().__new__(cls, value)
-
-
-class NormalizedReal(float):
-    """float in [0, 1]."""
-
-    def __new__(cls, value: float) -> Self:
-        assert Interval(0, 1).contains(value)
         return super().__new__(cls, value)
 
 
@@ -46,7 +34,6 @@ class Interval:
         )
 
     def contains(self, value: float) -> bool:
-        """Check if a value is contained within a the interval."""
         return (not self.lower_bound or value >= self.lower_bound) and (
             not self.upper_bound or value <= self.upper_bound
         )

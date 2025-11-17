@@ -1,94 +1,42 @@
 import random
 from dataclasses import dataclass
-from enum import StrEnum, auto
 from typing import TypeAlias
 
 import libsbml
 
-from biological_scenarios_generation.core import NormalizedReal, PartialOrder
-from biological_scenarios_generation.reactome import PhysicalEntity
+from biological_scenarios_generation.core import PartialOrder
+from biological_scenarios_generation.reactome import (
+    DatabaseObject,
+    PhysicalEntity,
+)
 
 SId: TypeAlias = str
 
 VirtualPatient: TypeAlias = dict[SId, float]
 
 
-class KineticConstantPurpose(StrEnum):
-    HALF_SATURATION = auto()
-    FORWARD_REACTION = auto()
-    REVERSE_REACTION = auto()
-
-
-@dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class VirtualPatientGenerator:
-    """A virtual patient is described by the set of parameters."""
-
-    # kinetic_constants: dict[SId, KineticConstantPurpose]
-    kinetic_constants: set[SId]
-
-    def __call__(self) -> VirtualPatient:
-        return {
-            kinetic_constant: 10 ** random.uniform(-20, 0)
-            if "half" in kinetic_constant or "k_h_" in kinetic_constant
-            else 10 ** random.uniform(-20, 20)
-            for kinetic_constant in self.kinetic_constants
-        }
-
-        # return {
-        #     kinetic_constant: pow(
-        #         10,
-        #         (
-        #             random.uniform(-20, 0)
-        #             if purpose == KineticConstantPurpose.HALF_SATURATION
-        #             else random.uniform(-20, 20)
-        #         ),
-        #     )
-        #     for kinetic_constant, purpose in self.kinetic_constants.items()
-        # }
-
-
-Environment: TypeAlias = dict[SId, NormalizedReal]
-
-
-@dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class EnvironmentGenerator:
-    """An environment dictates the initial conditions of the simulation (initial amounts of the species)."""
-
-    physical_entities: set[PhysicalEntity]
-
-    def __call__(self) -> Environment:
-        return {
-            repr(physical_entity): NormalizedReal(random.uniform(0, 1))
-            for physical_entity in self.physical_entities
-        }
-
-
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class BiologicalModel:
     document: libsbml.SBMLDocument
-    virtual_patient_generator: VirtualPatientGenerator
-    environment_generator: EnvironmentGenerator
-    constraints: PartialOrder[PhysicalEntity]
+    kinetic_constants: set[SId]
+    physical_entities_constraints: PartialOrder[PhysicalEntity]
+    kinetic_constants_constraints: PartialOrder[DatabaseObject]
 
     @staticmethod
     def load(document: libsbml.SBMLDocument) -> "BiologicalModel":
-        sbml_model: libsbml.Model = document.getModel()
-
         return BiologicalModel(
             document=document,
-            virtual_patient_generator=VirtualPatientGenerator(
-                {
-                    parameter.getId()
-                    for parameter in sbml_model.getListOfParameters()
-                    if "time" not in parameter.getId()
-                    and "mean" not in parameter.getId()
-                }
-            ),
-            environment_generator=EnvironmentGenerator(
-                {
-                    physical_entity.getId()
-                    for physical_entity in sbml_model.getListOfSpecies()
-                }
-            ),
-            constraints=set(),
+            kinetic_constants={
+                p.getId()
+                for p in document.getModel().getListOfParameters()
+                if "time" not in p.getId() and "mean" not in p.getId()
+            },
+            physical_entities_constraints=set(),
+            kinetic_constants_constraints=set(),
         )
+
+    def __call__(self) -> VirtualPatient:
+        return {
+            kinetic_constant: 10 ** random.uniform(-20, 20)
+            for kinetic_constant in self.kinetic_constants
+        }

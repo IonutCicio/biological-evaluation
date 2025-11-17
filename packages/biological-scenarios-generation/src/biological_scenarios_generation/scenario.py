@@ -1,7 +1,6 @@
 import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum, auto
 from functools import reduce
 from operator import attrgetter
 from typing import Any, LiteralString, TypeAlias
@@ -10,112 +9,73 @@ import libsbml
 import neo4j
 
 from biological_scenarios_generation.core import IntGTZ, PartialOrder
-from biological_scenarios_generation.model import (
-    BiologicalModel,
-    EnvironmentGenerator,
-    SId,
-    VirtualPatientGenerator,
-)
+from biological_scenarios_generation.model import BiologicalModel, SId
 from biological_scenarios_generation.reactome import (
     Compartment,
+    DatabaseObject,
     MathML,
-    ModifierRole,
+    ModifierCategory,
+    ModifierMetadata,
     Pathway,
     PhysicalEntity,
+    PhysicalEntityMetadata,
     ReactionLikeEvent,
     ReactomeDbId,
-    Role,
-    StandardRole,
-    StandardRoleInformation,
+    SpeciesCategory,
+    SpeciesMetadata,
     Stoichiometry,
 )
 
 
-class BaseKineticLaw(Enum):
-    """Well known kinetic laws."""
+def law_of_mass_action(
+    sbml_model: libsbml.Model, reaction: ReactionLikeEvent
+) -> tuple[MathML, set[SId]]:
+    kinetic_constants = set[SId]()
 
-    LAW_OF_MASS_ACTION = auto()
-    CONVENIENCE_KINETIC_LAW = auto()
+    def repr_stoichiometry(
+        physical_entity_metadata: tuple[PhysicalEntity, SpeciesMetadata],
+    ) -> str:
+        (physical_entity, metadata) = physical_entity_metadata
+        return f"({physical_entity}^{metadata.stoichiometry})"
 
-    def __call__(
-        self, sbml_model: libsbml.Model, reaction: ReactionLikeEvent
-    ) -> tuple[MathML, set[SId]]:
-        """Return reaction law and generate parameters."""
-        kinetic_constants = set[SId]()
+    forward_kinetic_constant: libsbml.Parameter = sbml_model.createParameter()
+    forward_kinetic_constant.setId(f"k_f_{reaction}")
+    forward_kinetic_constant.setValue(0.0)
+    forward_kinetic_constant.setConstant(True)
+    kinetic_constants.add(forward_kinetic_constant.getId())
+    formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(SpeciesCategory.INPUT)))})"
 
-        def repr_stoichiometry(
-            physical_entity_role_information: tuple[
-                PhysicalEntity, StandardRoleInformation
-            ],
-        ) -> str:
-            (physical_entity, role_information) = (
-                physical_entity_role_information
-            )
-            return f"({physical_entity}^{role_information.stoichiometry})"
+    formula_hill_component: str = ""
+    modifiers_functions: list[str] = []
+    for modifier_id, (modifier, metadata) in enumerate(reaction.modifiers()):
+        half_saturation_constant: libsbml.Parameter = (
+            sbml_model.createParameter()
+        )
+        half_saturation_constant.setId(f"k_h_{modifier_id}_{reaction}")
+        half_saturation_constant.setConstant(True)
+        half_saturation_constant.setValue(0.5)
+        kinetic_constants.add(half_saturation_constant.getId())
 
-        match self:
-            case BaseKineticLaw.LAW_OF_MASS_ACTION:
-                forward_kinetic_constant: libsbml.Parameter = (
-                    sbml_model.createParameter()
-                )
-                forward_kinetic_constant.setId(f"k_f_{reaction}")
-                forward_kinetic_constant.setValue(0.0)
-                forward_kinetic_constant.setConstant(True)
-                kinetic_constants.add(forward_kinetic_constant.getId())
-                formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.INPUT)))})"
+        hill_function: str = ""
+        match metadata.category:
+            case ModifierCategory.NEGATIVE_REGULATOR:
+                hill_function = f"({half_saturation_constant.getId()} / ({half_saturation_constant.getId()} + {modifier}^10))"
+            case _:
+                hill_function = f"({modifier}^10 / ({half_saturation_constant.getId()} + {modifier}^10))"
+        modifiers_functions.append(hill_function)
 
-                formula_reverse_reaction: str = ""
-                # if reaction.is_reversible:
-                #     reverse_kinetic_constant: libsbml.Parameter = (
-                #         sbml_model.createParameter()
-                #     )
-                #     reverse_kinetic_constant.setValue(0.0)
-                #     reverse_kinetic_constant.setId(f"k_r_{reaction}")
-                #     reverse_kinetic_constant.setConstant(True)
-                #     kinetic_constants.add(reverse_kinetic_constant.getId())
-                #
-                #     formula_reverse_reaction = f"- ({reverse_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.OUTPUT)))})"
+    if modifiers_functions:
+        formula_hill_component = f"* ({'*'.join(modifiers_functions)})"
 
-                formula_hill_component: str = ""
-                modifiers_functions: list[str] = []
-                for mod_id, (modifier, role) in enumerate(reaction.modifiers()):
-                    half_saturation_constant: libsbml.Parameter = (
-                        sbml_model.createParameter()
-                    )
-                    half_saturation_constant.setId(f"k_h_{mod_id}_{reaction}")
-                    half_saturation_constant.setConstant(True)
-                    half_saturation_constant.setValue(0.5)
-                    kinetic_constants.add(half_saturation_constant.getId())
-
-                    hill_function: str = ""
-                    match role:
-                        case ModifierRole.NEGATIVE_REGULATOR:
-                            hill_function = f"({half_saturation_constant.getId()} / ({half_saturation_constant.getId()} + {modifier}^10))"
-                        case _:
-                            hill_function = f"({modifier}^10 / ({half_saturation_constant.getId()} + {modifier}^10))"
-                    modifiers_functions.append(hill_function)
-
-                if modifiers_functions:
-                    formula_hill_component = (
-                        f"* ({'*'.join(modifiers_functions)})"
-                    )
-
-                formula_regulation: str = ""
-
-                return (
-                    f"({formula_forward_reaction} {formula_reverse_reaction}) {formula_hill_component} {formula_regulation}",
-                    kinetic_constants,
-                )
-
-            case BaseKineticLaw.CONVENIENCE_KINETIC_LAW:
-                return ("", set[SId]())
+    return (
+        f"({formula_forward_reaction}) {formula_hill_component}",
+        kinetic_constants,
+    )
 
 
-CustomKineticLaw: TypeAlias = Callable[
+KineticLaw: TypeAlias = Callable[
     [libsbml.Model, ReactionLikeEvent], tuple[MathML, set[SId]]
 ]
-
-KineticLaw: TypeAlias = BaseKineticLaw | CustomKineticLaw
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -126,10 +86,8 @@ class BiologicalScenarioDefinition:
     pathways: set[Pathway]
     constraints: PartialOrder[PhysicalEntity]
     max_depth: IntGTZ | None = field(default=None)
-    ignored_physical_entities: set[PhysicalEntity] = field(default_factory=set)
-    default_kinetic_law: KineticLaw = field(
-        default=BaseKineticLaw.LAW_OF_MASS_ACTION
-    )
+    excluded_physical_entities: set[PhysicalEntity] = field(default_factory=set)
+    default_kinetic_law: KineticLaw = field(default=law_of_mass_action)
     kinetic_laws: dict[ReactionLikeEvent, KineticLaw] = field(
         default_factory=dict
     )
@@ -150,23 +108,29 @@ class BiologicalScenarioDefinition:
     def __biological_network(
         self, neo4j_driver: neo4j.Driver
     ) -> _BiologicalNetwork:
-        _network_reaction: LiteralString = "networkReactionLikeEvent"
-        _network_physical_entity: LiteralString = "networkPhysicalEntity"
-        _network_compartment: LiteralString = "networkCompartment"
-        physical_entity_reference: LiteralString = (
-            "networkPhysicalEntityReference"
+        reactions_of_interest: LiteralString = "reactionsOfInterest"
+        network_reaction: LiteralString = "networkReactionLikeEvent"
+        network_reactions: LiteralString = "networkReactionLikeEvents"
+        network_physical_entity: LiteralString = "networkPhysicalEntity"
+        network_compartment: LiteralString = "networkCompartment"
+        network_reaction_physical_entity: LiteralString = (
+            "networkReactionPhysicalEntity"
         )
+        network_reaction_physical_entities: LiteralString = (
+            "networkReactionPhysicalEntities"
+        )
+        category: LiteralString = "category"
 
-        query_reactions_of_interest_subset: LiteralString = """
+        query_reaction_of_interest_subset: LiteralString = f"""
         MATCH (pathway:Pathway)
         WHERE pathway.dbId IN $scenario_pathways
         CALL
             apoc.path.subgraphNodes(
                 pathway,
-                {relationshipFilter: "hasEvent>", labelFilter: ">ReactionLikeEvent"}
+                {{relationshipFilter: "hasEvent>", labelFilter: ">ReactionLikeEvent"}}
             )
             YIELD node
-        WITH COLLECT(DISTINCT node) AS reactionsOfInterest
+        WITH COLLECT(DISTINCT node) AS {reactions_of_interest}
         """
 
         query_transitive_closure_of_scenario: LiteralString = f"""
@@ -179,243 +143,179 @@ class BiologicalScenarioDefinition:
                     relationshipFilter: "<output|input>|catalystActivity>|physicalEntity>|<regulatedBy|regulator>",
                     labelFilter: ">ReactionLikeEvent",
                     maxLevel: $max_depth,
-                    denylistNodes: $ignored_physical_entities
+                    denylistNodes: $excluded_physical_entities
                 }}
             )
-            YIELD node AS {_network_reaction}
+            YIELD node AS {network_reaction}
         """
 
-        filter_reactions_of_interest: LiteralString = (
-            f"WHERE {_network_reaction} IN reactionsOfInterest"
-        )
-
-        query_network_reaction_inputs: LiteralString = f"""
+        query_reaction_species: LiteralString = f"""
         CALL {{
-            WITH {_network_reaction}
-            MATCH ({_network_reaction})-[relationship:input]->({_network_physical_entity}:PhysicalEntity)
+            WITH {network_reaction}
+            MATCH ({network_reaction})-[metadata:input|output]->({network_physical_entity}:PhysicalEntity)
             RETURN
                 COLLECT({{
-                    physicalEntity: {_network_physical_entity},
-                    stoichiometry: relationship.stoichiometry,
-                    role: "input"
-                }}) AS inputs
+                    physicalEntity: {network_physical_entity},
+                    stoichiometry: metadata.stoichiometry,
+                    {category}: type(metadata)
+                }}) AS species
         }}
         """
 
-        query_network_reaction_outputs: LiteralString = f"""
+        query_reaction_enzymes: LiteralString = f"""
         CALL {{
-            WITH {_network_reaction}
-            MATCH ({_network_reaction})-[relationship:output]->({_network_physical_entity}:PhysicalEntity)
+            WITH {network_reaction}
+            MATCH ({network_reaction})-[:catalystActivity]->(:CatalystActivity)-[:physicalEntity]->({network_physical_entity}:PhysicalEntity)
             RETURN
                 COLLECT({{
-                    physicalEntity: {_network_physical_entity},
-                    stoichiometry: relationship.stoichiometry,
-                    role: "output"
-                }}) AS outputs
-        }}
-        """
-
-        query_network_reaction_enzymes: LiteralString = f"""
-        CALL {{
-            WITH {_network_reaction}
-            MATCH ({_network_reaction})-[:catalystActivity]->(:CatalystActivity)-[:physicalEntity]->({_network_physical_entity}:PhysicalEntity)
-            RETURN
-                COLLECT({{
-                    physicalEntity: {_network_physical_entity},
-                    role: "enzyme"
+                    physicalEntity: {network_physical_entity},
+                    {category}: "enzyme"
                 }}) AS enzymes
         }}
         """
 
-        def query_network_reaction_regulators(
-            label: LiteralString, role: LiteralString, collection: LiteralString
-        ) -> LiteralString:
-            return f"""
+        query_reaction_regulators: LiteralString = f"""
+        CALL {{
+            WITH {network_reaction}
+            MATCH ({network_reaction})-[:regulatedBy]->(regulation:Regulation)-[:regulator]->({network_physical_entity}:PhysicalEntity)
+            RETURN
+                COLLECT({{
+                    physicalEntity: {network_physical_entity},
+                    {category}: CASE
+                        WHEN "PositiveRegulation" in labels(regulation) THEN "positive_regulator"
+                        WHEN "NegativeRegulation" in labels(regulation) THEN "negative_regulator"
+                        ELSE ""
+                    END
+                }}) AS regulators
+        }}
+        """
+
+        query_reaction_compartments: LiteralString = f"""
+        CALL {{
+            WITH {network_reaction}
+            MATCH ({network_reaction})-[:compartment]->({network_compartment}:Compartment)
+            RETURN COLLECT({network_compartment}.dbId) AS compartments
+        }}
+        """
+
+        query_reaction_physical_entities_metadata: LiteralString = f"""
+        WITH *, species + enzymes + regulators AS {network_reaction_physical_entities}
+        CALL {{
+            WITH {network_reaction_physical_entities}, {network_reactions}
+            UNWIND {network_reaction_physical_entities} AS {network_reaction_physical_entity}
             CALL {{
-                WITH {_network_reaction}
-                MATCH ({_network_reaction})-[:regulatedBy]->(:{label})-[:regulator]->({_network_physical_entity}:PhysicalEntity)
-                RETURN
-                    COLLECT({{
-                        physicalEntity: {_network_physical_entity},
-                        role: "{role}"
-                    }}) AS {collection}
+                WITH {network_reaction_physical_entity}
+                WITH {network_reaction_physical_entity}.physicalEntity AS {network_physical_entity}
+                MATCH ({network_physical_entity})-[:compartment]->({network_compartment}:Compartment)
+                RETURN COLLECT({network_compartment}.dbId) as physicalEntityCompartments
             }}
-            """
-
-        query_network_reaction_positive_regulators: LiteralString = (
-            query_network_reaction_regulators(
-                label="PositiveRegulation",
-                role="positive_regulator",
-                collection="positiveRegulators",
-            )
-        )
-
-        query_network_reaction_negative_regulators: LiteralString = (
-            query_network_reaction_regulators(
-                label="NegativeRegulation",
-                role="negative_regulator",
-                collection="negativeRegulators",
-            )
-        )
-
-        query_network_reaction_compartments: LiteralString = f"""
-        CALL {{
-            WITH {_network_reaction}
-            MATCH ({_network_reaction})-[:compartment]->({_network_compartment}:Compartment)
-            RETURN COLLECT({_network_compartment}.dbId) AS compartments
-        }}
-        """
-
-        query_is_network_reaction_reversible: LiteralString = f"""
-        CALL {{
-            WITH {_network_reaction}
-            OPTIONAL MATCH ({_network_reaction})-[:reverseReaction]->(reverseReactionLikeEvent)
-            RETURN reverseReactionLikeEvent
-        }}
-        """
-
-        query_expand_reaction_physical_entities_information: LiteralString = f"""
-        WITH *, inputs + outputs + enzymes + positiveRegulators + negativeRegulators AS references
-        CALL {{
-            WITH references
-            UNWIND references AS {physical_entity_reference}
             CALL {{
-                WITH {physical_entity_reference}
-                WITH {physical_entity_reference}.physicalEntity AS {_network_physical_entity}
-                    MATCH ({_network_physical_entity})-[:compartment]-({_network_compartment}:Compartment)
-                    RETURN COLLECT({_network_compartment}.dbId) as physicalEntityCompartments
-                }}
-                RETURN
-                    COLLECT({{
-                        id: {physical_entity_reference}.physicalEntity.dbId,
-                        role: {physical_entity_reference}.role,
-                        stoichiometry: {physical_entity_reference}.stoichiometry,
-                        compartments: physicalEntityCompartments
-                    }}) as physicalEntities
+                WITH {network_reaction_physical_entity}, {network_reactions}
+                WITH {network_reaction_physical_entity}.physicalEntity AS {network_physical_entity}, {network_reactions}
+
+                MATCH ({network_physical_entity})<-[:input]-(r:ReactionLikeEvent)
+                WHERE r IN {network_reactions}
+                RETURN COLLECT(r.dbId) AS producedBy
+            }}
+            RETURN
+                COLLECT({{
+                    id: {network_reaction_physical_entity}.physicalEntity.dbId,
+                    {category}: {network_reaction_physical_entity}.{category},
+                    stoichiometry: {network_reaction_physical_entity}.stoichiometry,
+                    compartments: physicalEntityCompartments,
+                    produced_by: producedBy
+                }}) as physicalEntities
         }}
         """
 
-        query_network_inputs: LiteralString = """
-        CALL {
-            WITH networkReactions, networkPhysicalEntities
+        query_network_inputs: LiteralString = f"""
+        CALL {{
+            WITH {network_reactions}, networkPhysicalEntities
             MATCH (physicalEntity:PhysicalEntity)
             WHERE
                 physicalEntity.dbId IN networkPhysicalEntities AND
-                NOT EXISTS {
+                NOT EXISTS {{
                     MATCH (physicalEntity)<-[:output]-(reactionLikeEvent:ReactionLikeEvent)
-                    WHERE reactionLikeEvent IN networkReactions
-                }
+                    WHERE reactionLikeEvent IN {network_reactions}
+                }}
             RETURN COLLECT(physicalEntity.dbId) AS networkInputs
-        }
+        }}
         """
 
-        query_network_outputs: LiteralString = """
-        CALL {
-            WITH networkReactions, networkPhysicalEntities
+        query_network_outputs: LiteralString = f"""
+        CALL {{
+            WITH {network_reactions}, networkPhysicalEntities
             MATCH (physicalEntity:PhysicalEntity)
             WHERE
                 physicalEntity.dbId IN networkPhysicalEntities AND
-                NOT EXISTS {
+                NOT EXISTS {{
                     MATCH (physicalEntity)<-[:input]-(reactionLikeEvent:ReactionLikeEvent)
-                    WHERE reactionLikeEvent IN networkReactions
-                }
+                    WHERE reactionLikeEvent IN {network_reactions}
+                }}
             RETURN COLLECT(physicalEntity.dbId) AS networkOutputs
-        }
+        }}
         """
 
         query: LiteralString = f"""
-        {query_reactions_of_interest_subset if self.pathways else ""}
+        {query_reaction_of_interest_subset if self.pathways else ""}
         {query_transitive_closure_of_scenario}
-        {filter_reactions_of_interest if self.pathways else ""}
-        WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
-        UNWIND networkReactions AS {_network_reaction}
-        {query_network_reaction_inputs}
-        {query_network_reaction_outputs}
-        {query_network_reaction_enzymes}
-        {query_network_reaction_positive_regulators}
-        {query_network_reaction_negative_regulators}
-        {query_network_reaction_compartments}
-        {query_is_network_reaction_reversible}
-        {query_expand_reaction_physical_entities_information}
+        {f"WHERE {network_reaction} IN {reactions_of_interest}" if self.pathways else ""}
+        WITH COLLECT(DISTINCT {network_reaction}) AS {network_reactions}
+        UNWIND {network_reactions} AS {network_reaction}
+        {query_reaction_species}
+        {query_reaction_enzymes}
+        {query_reaction_regulators}
+        {query_reaction_compartments}
+        {query_reaction_physical_entities_metadata}
         WITH
             COLLECT({{
-                id: {_network_reaction}.dbId,
+                id: {network_reaction}.dbId,
                 physical_entities: physicalEntities,
                 compartments: compartments
-            }}) AS networkReactionsDetails,
-            networkReactions
-        UNWIND networkReactionsDetails AS {_network_reaction}
-        UNWIND {_network_reaction}.physical_entities AS {_network_physical_entity}
+            }}) AS networkReactionsMetadata,
+            {network_reactions}
+        UNWIND networkReactionsMetadata AS {network_reaction}
+        UNWIND {network_reaction}.physical_entities AS {network_physical_entity}
         WITH
-            networkReactionsDetails,
-            networkReactions,
+            networkReactionsMetadata,
+            {network_reactions},
             apoc.convert.toSet(
                 apoc.coll.flatten(
-                    COLLECT({_network_physical_entity}.id)
+                    COLLECT({network_physical_entity}.id)
                 )
             ) AS networkPhysicalEntities
         {query_network_inputs}
         {query_network_outputs}
-        RETURN networkReactionsDetails, networkInputs, networkOutputs
+        RETURN networkReactionsMetadata, networkInputs, networkOutputs
         """
-
-        # query_network_reaction_inputs_which_are_network_inputs: LiteralString = f"""
-        # CALL {{
-        #     WITH {_network_reaction}, networkReactions
-        #     MATCH ({_network_reaction})-[:input]->({_network_physical_entity}:PhysicalEntity)
-        #     WHERE NOT EXISTS {{
-        #         MATCH ({_network_physical_entity})<-[:output]-(frontierReactionLikeEvent:ReactionLikeEvent)
-        #         WHERE frontierReactionLikeEvent IN networkReactions
-        #     }}
-        #     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkInputs
-        # }}
-        # """
-        #
-        # query_network_reaction_outputs_which_are_network_outputs: LiteralString = f"""
-        # CALL {{
-        #     WITH {_network_reaction}, networkReactions
-        #     MATCH ({_network_reaction})-[:output]->({_network_physical_entity}:PhysicalEntity)
-        #     WHERE NOT EXISTS {{
-        #         MATCH ({_network_physical_entity})<-[:input]-(frontierReactionLikeEvent:ReactionLikeEvent)
-        #         WHERE frontierReactionLikeEvent IN networkReactions
-        #     }}
-        #     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkOutputs
-        # }}
-        # """
-
-        # UNWIND networkReactions AS {_network_reaction}
-        # reverse_reaction: reverseReactionLikeEvent,
-
-        # collect_network_reactions: LiteralString = f"""
-        # WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
-        # UNWIND networkReactions AS {_network_reaction}
-        # """
-
-        # {query_network_reaction_inputs_which_are_network_inputs}
-        # {query_network_reaction_outputs_which_are_network_outputs}
-        # COLLECT(reactionNetworkInputs) AS networkInputs,
-        # COLLECT(reactionNetworkOutputs) AS networkOutputs;
 
         records: list[neo4j.Record]
         records, _, _ = neo4j_driver.execute_query(
             query,
             scenario_pathways=list(map(int, self.pathways)),
             scenario_physical_entities=list(map(int, self.physical_entities)),
-            ignored_physical_entities=list(
-                map(int, self.ignored_physical_entities)
+            excluded_physical_entities=list(
+                map(int, self.excluded_physical_entities)
             ),
             max_depth=int(self.max_depth) if self.max_depth else -1,
         )
 
-        def match_role(obj: dict[str, str]) -> Role:
-            match obj["role"]:
+        def match_category(obj: dict[str, str]) -> PhysicalEntityMetadata:
+            match obj[category]:
                 case "input" | "output":
-                    return StandardRoleInformation(
+                    return SpeciesMetadata(
                         stoichiometry=Stoichiometry(int(obj["stoichiometry"])),
-                        role=StandardRole(obj["role"]),
+                        category=SpeciesCategory(obj[category]),
                     )
                 case _:
-                    return ModifierRole(obj["role"])
+                    return ModifierMetadata(
+                        produced_by={
+                            DatabaseObject(ReactomeDbId(int(obj_id)))
+                            for obj_id in obj["produced_by"]
+                        },
+                        category=ModifierCategory(obj[category]),
+                    )
+                    # return ModifierCategory(obj[category])
 
         input_physical_entities = set[ReactomeDbId](
             map(ReactomeDbId, itertools.chain(records[0]["networkInputs"]))
@@ -425,7 +325,9 @@ class BiologicalScenarioDefinition:
             map(ReactomeDbId, itertools.chain(records[0]["networkOutputs"]))
         )
 
-        rows: list[dict[str, Any]] = records[0]["networkReactionsDetails"]
+        print(records[0]["networkReactionsMetadata"])
+
+        rows: list[dict[str, Any]] = records[0]["networkReactionsMetadata"]
         reaction_like_events: set[ReactionLikeEvent] = {
             ReactionLikeEvent(
                 id=ReactomeDbId(reaction["id"]),
@@ -433,7 +335,7 @@ class BiologicalScenarioDefinition:
                     PhysicalEntity(
                         id=ReactomeDbId(obj["id"]),
                         compartments=set(map(Compartment, obj["compartments"])),
-                    ): match_role(obj)
+                    ): match_category(obj)
                     for obj in reaction["physical_entities"]
                 },
                 compartments=set(map(Compartment, reaction["compartments"])),
@@ -461,14 +363,6 @@ class BiologicalScenarioDefinition:
             set[Compartment](),
         )
 
-        # input_physical_entities = (
-        #     input_physical_entities - output_physical_entities
-        # )
-        # input_physical_entities = {1}
-        # output_physical_entities = {1}
-        # TODO: include in transitive closure reverse reactions!
-        # print("| inp |", input_physical_entities, "|")
-        # print("| out |", output_physical_entities, "|")
         return BiologicalScenarioDefinition._BiologicalNetwork(
             input_physical_entities=input_physical_entities,
             output_physical_entities=output_physical_entities,
@@ -504,9 +398,9 @@ class BiologicalScenarioDefinition:
         time_rule.setVariable("time_")
         time_rule.setFormula("1")
 
+        # environment_physical_entities = set[PhysicalEntity]()
         kinetic_constants = set[SId]()
-        environment_physical_entities = set[PhysicalEntity]()
-
+        kinetic_constants_constraints = PartialOrder[DatabaseObject]()
         biological_network: BiologicalScenarioDefinition._BiologicalNetwork = (
             self.__biological_network(driver)
         )
@@ -531,9 +425,7 @@ class BiologicalScenarioDefinition:
                     species.setSubstanceUnits("mole")
                     species.setBoundaryCondition(False)
                     species.setHasOnlySubstanceUnits(False)
-                    # species.setInitialAmount(0.5)
                     species.setInitialConcentration(0.0)
-                    # species.setHasOnlySubstanceUnits(False)
 
                     species_mean: libsbml.Parameter = (
                         sbml_model.createParameter()
@@ -549,21 +441,19 @@ class BiologicalScenarioDefinition:
                         f"({species.getId()} - {species_mean.getId()}) / (time_ + 10e-6)"
                     )
 
-                    environment_physical_entities.add(obj)
-
                     if (
                         obj.id in biological_network.input_physical_entities
                         and obj.id
                         in biological_network.output_physical_entities
                     ):
-                        species.setInitialConcentration(0.9)
+                        species.setInitialConcentration(0.5)
                     elif obj.id in biological_network.input_physical_entities:
-                        frontier_reaction: libsbml.Reaction = (
+                        production_reaction: libsbml.Reaction = (
                             sbml_model.createReaction()
                         )
-                        frontier_reaction.setId(f"r_{obj}")
-                        frontier_reaction.setReversible(False)
-                        frontier_reaction.setFast(False)
+                        production_reaction.setId(f"r_{obj}")
+                        production_reaction.setReversible(False)
+                        production_reaction.setFast(False)
 
                         kinetic_constant: libsbml.Parameter = (
                             sbml_model.createParameter()
@@ -580,7 +470,7 @@ class BiologicalScenarioDefinition:
                         input_species_ref.setConstant(False)
                         input_species_ref.setStoichiometry(1)
                         input_kinetic_law: libsbml.KineticLaw = (
-                            frontier_reaction.createKineticLaw()
+                            production_reaction.createKineticLaw()
                         )
                         input_kinetic_law.setMath(
                             libsbml.parseL3Formula(
@@ -588,12 +478,12 @@ class BiologicalScenarioDefinition:
                             )
                         )
                     elif obj.id in biological_network.output_physical_entities:
-                        frontier_reaction: libsbml.Reaction = (
+                        consumption_reaction: libsbml.Reaction = (
                             sbml_model.createReaction()
                         )
-                        frontier_reaction.setId(f"r_{obj}")
-                        frontier_reaction.setReversible(False)
-                        frontier_reaction.setFast(False)
+                        consumption_reaction.setId(f"r_{obj}")
+                        consumption_reaction.setReversible(False)
+                        consumption_reaction.setFast(False)
 
                         kinetic_constant: libsbml.Parameter = (
                             sbml_model.createParameter()
@@ -610,7 +500,7 @@ class BiologicalScenarioDefinition:
                         output_species_ref.setConstant(False)
                         output_species_ref.setStoichiometry(1)
                         output_kinetic_law: libsbml.KineticLaw = (
-                            frontier_reaction.createKineticLaw()
+                            consumption_reaction.createKineticLaw()
                         )
                         output_kinetic_law.setMath(
                             libsbml.parseL3Formula(
@@ -631,19 +521,23 @@ class BiologicalScenarioDefinition:
                     # reaction.setCompartment(reaction_compartment)
                     reaction.setCompartment("default_compartment")
 
-                    for physical_entity, role_information in obj.entities():
+                    for physical_entity, metadata in obj.entities():
                         species_ref: libsbml.SpeciesReference
-                        match role_information.role:
-                            case StandardRole.INPUT:
-                                species_ref = sbml_model.createReactant()
-                            case StandardRole.OUTPUT:
-                                species_ref = sbml_model.createProduct()
+                        match metadata.category:
+                            case SpeciesCategory.INPUT:
+                                species_ref = reaction.createReactant()
+                            case SpeciesCategory.OUTPUT:
+                                species_ref = reaction.createProduct()
 
                         species_ref.setSpecies(repr(physical_entity))
                         species_ref.setConstant(False)
                         species_ref.setStoichiometry(
-                            int(role_information.stoichiometry)
+                            int(metadata.stoichiometry)
                         )
+
+                    for physical_entity, _ in obj.modifiers():
+                        modifier_species_ref: libsbml.ModifierSpeciesReference = reaction.createModifier()
+                        modifier_species_ref.setSpecies(f"{physical_entity}")
 
                     kinetic_law_procedure = self.kinetic_laws.get(
                         obj, self.default_kinetic_law
@@ -659,14 +553,15 @@ class BiologicalScenarioDefinition:
                     kinetic_constants = (
                         kinetic_constants | reaction_kinetic_constants
                     )
+                    for _, metadata in obj.modifiers():
+                        for modifier_reaction in metadata.produced_by:
+                            kinetic_constants_constraints.add(
+                                (modifier_reaction, obj)
+                            )
 
         return BiologicalModel(
-            document=sbml_document,
-            virtual_patient_generator=VirtualPatientGenerator(
-                kinetic_constants
-            ),
-            environment_generator=EnvironmentGenerator(
-                environment_physical_entities
-            ),
-            constraints=self.constraints,
+            sbml_document=sbml_document,
+            kinetic_constants=kinetic_constants,
+            physical_entities_constraints=self.constraints,
+            kinetic_constants_constraints=kinetic_constants_constraints,
         )

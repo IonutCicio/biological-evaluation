@@ -18,8 +18,7 @@ StableIdVersion: TypeAlias = str
 class ReactomeDbId(IntGEZ):
     """Identifier for objects in Reactome.
 
-    Objects in the Reactome Knowledgebase all have a `dbId` attribute as an
-    identifier
+    Objects in the Reactome Knowledgebase all have a `dbId` attribute as an identifier
     """
 
     @staticmethod
@@ -69,7 +68,6 @@ class Compartment(DatabaseObject):
     @override
     def __repr__(self) -> str:
         return f"c_{super().__repr__()}"
-        # return f"compartment_{super().__repr__()}"
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -86,28 +84,33 @@ class PhysicalEntity(DatabaseObject):
 
     @override
     def __repr__(self) -> str:
-        # return f"species_{super().__repr__()}"
         return f"s_{super().__repr__()}"
 
 
-class StandardRole(StrEnum):
+class SpeciesCategory(StrEnum):
     INPUT = auto()
     OUTPUT = auto()
 
 
-class ModifierRole(StrEnum):
+@dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
+class SpeciesMetadata:
+    category: SpeciesCategory
+    stoichiometry: Stoichiometry
+
+
+class ModifierCategory(StrEnum):
     ENZYME = auto()
     POSITIVE_REGULATOR = auto()
     NEGATIVE_REGULATOR = auto()
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class StandardRoleInformation:
-    stoichiometry: Stoichiometry
-    role: StandardRole
+class ModifierMetadata:
+    category: ModifierCategory
+    produced_by: set[DatabaseObject]
 
 
-Role: TypeAlias = StandardRoleInformation | ModifierRole
+PhysicalEntityMetadata: TypeAlias = SpeciesMetadata | ModifierMetadata
 
 
 class Event(DatabaseObject):
@@ -116,14 +119,6 @@ class Event(DatabaseObject):
 
 class Pathway(Event):
     pass
-
-
-# POSITIVE_GENE_REGULATOR = auto()
-# NEGATIVE_GENE_REGULATOR = auto()
-
-# Role is not enough, I need to know if it's input or not, but it's not related to all reactions, just to model!
-# Interesting... I still need to save the info somewhere
-# Maybe I should go back to the drawing board for a moment
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -135,31 +130,36 @@ class ReactionLikeEvent(Event):
     mediated by a catalyst activity and subject to regulation
     """
 
-    physical_entities: Mapping[PhysicalEntity, Role]
+    physical_entities: Mapping[PhysicalEntity, PhysicalEntityMetadata]
     compartments: set[Compartment] = field(default_factory=set)
     is_reversible: bool = field(default=False)
 
     @override
     def __repr__(self) -> str:
         return f"r_{super().__repr__()}"
-        # return f"reaction_{super().__repr__()}"
 
     def modifiers(
-        self, modifier_role: ModifierRole | None = None
-    ) -> set[tuple[PhysicalEntity, ModifierRole]]:
+        self, modifier_category: ModifierCategory | None = None
+    ) -> set[tuple[PhysicalEntity, ModifierMetadata]]:
         return {
-            (physical_entity, role)
-            for physical_entity, role in self.physical_entities.items()
-            if isinstance(role, ModifierRole)
-            and (modifier_role is None or role == modifier_role)
+            (physical_entity, metadata)
+            for physical_entity, metadata in self.physical_entities.items()
+            if isinstance(metadata, ModifierMetadata)
+            and (
+                modifier_category is None
+                or metadata.category == modifier_category
+            )
         }
 
     def entities(
-        self, standard_role: StandardRole | None = None
-    ) -> set[tuple[PhysicalEntity, StandardRoleInformation]]:
+        self, species_cateogry: SpeciesCategory | None = None
+    ) -> set[tuple[PhysicalEntity, SpeciesMetadata]]:
         return {
-            (physical_entity, role)
-            for physical_entity, role in self.physical_entities.items()
-            if isinstance(role, StandardRoleInformation)
-            and (standard_role is None or role.role == standard_role)
+            (physical_entity, metadata)
+            for physical_entity, metadata in self.physical_entities.items()
+            if isinstance(metadata, SpeciesMetadata)
+            and (
+                species_cateogry is None
+                or metadata.category == species_cateogry
+            )
         }

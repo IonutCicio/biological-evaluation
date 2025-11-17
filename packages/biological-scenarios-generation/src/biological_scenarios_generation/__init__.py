@@ -1,3 +1,126 @@
+# kinetic_constant: 10 ** random.uniform(-20, 0)
+# if "half" in kinetic_constant or "k_h_" in kinetic_constant
+# else 10 ** random.uniform(-20, 20)
+# for kinetic_constant in self.kinetic_constants
+
+# """Check if a value is contained within a the interval."""
+# formula_reverse_reaction: str = ""
+# virtual_patient_generator=VirtualPatientGenerator(
+# ),
+# network_reactions_metadata: LiteralString = "networkReactionsMetadata"
+# from enum import Enum, auto
+
+# class BaseKineticLaw(Enum):
+#     LAW_OF_MASS_ACTION = auto()
+#     CONVENIENCE_KINETIC_LAW = auto()
+#
+#     def __call__(
+#         self, sbml_model: libsbml.Model, reaction: ReactionLikeEvent
+#     ) -> tuple[MathML, set[SId]]:
+#
+#             case BaseKineticLaw.CONVENIENCE_KINETIC_LAW:
+#                 return ("", set[SId]())
+# CustomKineticLaw: TypeAlias = Callable[
+#     [libsbml.Model, ReactionLikeEvent], tuple[MathML, set[SId]]
+# ]
+# KineticLaw: TypeAlias = BaseKineticLaw | CustomKineticLaw
+
+# if reaction.is_reversible:
+#     reverse_kinetic_constant: libsbml.Parameter = (
+#         sbml_model.createParameter()
+#     )
+#     reverse_kinetic_constant.setValue(0.0)
+#     reverse_kinetic_constant.setId(f"k_r_{reaction}")
+#     reverse_kinetic_constant.setConstant(True)
+#     kinetic_constants.add(reverse_kinetic_constant.getId())
+#
+#     formula_reverse_reaction = f"- ({reverse_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.entities(StandardRole.OUTPUT)))})"
+
+# virtual_patient_generator=VirtualPatientGenerator(
+#     {
+#         parameter.getId()
+#         for parameter in sbml_model.getListOfParameters()
+#         if "time" not in parameter.getId()
+#         and "mean" not in parameter.getId()
+#     }
+# ),
+
+# virtual_patient_generator: VirtualPatientGenerator
+
+
+# @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
+# class VirtualPatientGenerator:
+#     kinetic_constants: set[SId]
+# class NormalizedReal(float):
+#     """float in [0, 1]."""
+#
+#     def __new__(cls, value: float) -> Self:
+#         assert Interval(0, 1).contains(value)
+#         return super().__new__(cls, value)
+
+# TODO: produced_by attribute of physical entities of network reaction
+# TODO: include reverse reactions in network, even if they are not in transitive closure
+
+# standard
+# chemical
+# partecipant
+# species
+# entity
+
+# modifier
+# metadata
+# category
+# information
+
+# POSITIVE_GENE_REGULATOR = auto()
+# NEGATIVE_GENE_REGULATOR = auto()
+
+# kinetic_constants: dict[SId, KineticConstantPurpose]
+
+# species.setInitialAmount(0.5)
+# species.setHasOnlySubstanceUnits(False)
+# input_physical_entities = (
+#     input_physical_entities - output_physical_entities
+# )
+# input_physical_entities = {1}
+# output_physical_entities = {1}
+# TODO: include in transitive closure reverse reactions!
+# print("| inp |", input_physical_entities, "|")
+# print("| out |", output_physical_entities, "|")
+
+# problem
+# biological
+# network
+# satisfiability
+# model
+# constraints
+# physical_entities
+
+# when looking at a reactions outputs, let's say which are the modified reactions of that output
+# so each physical entity has attached the "modified reactions" set, this way I can say
+# if reaction1 < reaction2 "if parameter1 matches pattern of reaction1 and and parameter2 matches pattern of reaction2, then parameter1 < parameter2"
+
+
+# return {
+#     kinetic_constant: pow(
+#         10,
+#         (
+#             random.uniform(-20, 0)
+#             if purpose == KineticConstantPurpose.HALF_SATURATION
+#             else random.uniform(-20, 20)
+#         ),
+#     )
+#     for kinetic_constant, purpose in self.kinetic_constants.items()
+# }
+
+# return f"species_{super().__repr__()}"
+# return f"compartment_{super().__repr__()}"
+# return f"reaction_{super().__repr__()}"
+# Role is not enough, I need to know if it's input or not, but it's not related to all reactions, just to model!
+# Interesting... I still need to save the info somewhere
+# Maybe I should go back to the drawing board for a moment
+
+
 # virtual_patient_details.extend(
 #         map(lambda parameter: parameter.getId(), parameters)
 # )
@@ -552,3 +675,148 @@
 #     return isinstance(
 #         value, BiologicalScenarioDefinition._NetworkPhysicalEntity
 #     ) and self.physical_entity.__eq__(value.physical_entity)
+
+# query_network_reaction_inputs_which_are_network_inputs: LiteralString = f"""
+# CALL {{
+#     WITH {_network_reaction}, networkReactions
+#     MATCH ({_network_reaction})-[:input]->({_network_physical_entity}:PhysicalEntity)
+#     WHERE NOT EXISTS {{
+#         MATCH ({_network_physical_entity})<-[:output]-(frontierReactionLikeEvent:ReactionLikeEvent)
+#         WHERE frontierReactionLikeEvent IN networkReactions
+#     }}
+#     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkInputs
+# }}
+# """
+#
+# query_network_reaction_outputs_which_are_network_outputs: LiteralString = f"""
+# CALL {{
+#     WITH {_network_reaction}, networkReactions
+#     MATCH ({_network_reaction})-[:output]->({_network_physical_entity}:PhysicalEntity)
+#     WHERE NOT EXISTS {{
+#         MATCH ({_network_physical_entity})<-[:input]-(frontierReactionLikeEvent:ReactionLikeEvent)
+#         WHERE frontierReactionLikeEvent IN networkReactions
+#     }}
+#     RETURN COLLECT({_network_physical_entity}.dbId) AS reactionNetworkOutputs
+# }}
+# """
+
+# UNWIND networkReactions AS {_network_reaction}
+# reverse_reaction: reverseReactionLikeEvent,
+
+# collect_network_reactions: LiteralString = f"""
+# WITH COLLECT(DISTINCT {_network_reaction}) AS networkReactions
+# UNWIND networkReactions AS {_network_reaction}
+# """
+
+# {query_network_reaction_inputs_which_are_network_inputs}
+# {query_network_reaction_outputs_which_are_network_outputs}
+# COLLECT(reactionNetworkInputs) AS networkInputs,
+# COLLECT(reactionNetworkOutputs) AS networkOutputs;
+
+# query_is_network_reaction_reversible: LiteralString = f"""
+# CALL {{
+#     WITH {_network_reaction}
+#     OPTIONAL MATCH ({_network_reaction})-[:reverseReaction]->(reverseReactionLikeEvent)
+#     RETURN reverseReactionLikeEvent
+# }}
+# """
+
+# {query_is_network_reaction_reversible}
+# filter_reactions_of_interest: LiteralString = (
+#     f"WHERE {_network_reaction} IN reactionsOfInterest"
+# )
+
+# def query_network_reaction_regulators(
+#     label: LiteralString, role: LiteralString, collection: LiteralString
+# ) -> LiteralString:
+#     return f"""
+#     CALL {{
+#         WITH {_network_reaction}
+#         MATCH ({_network_reaction})-[:regulatedBy]->(:{label})-[:regulator]->({_network_physical_entity}:PhysicalEntity)
+#         RETURN
+#             COLLECT({{
+#                 physicalEntity: {_network_physical_entity},
+#                 role: "{role}"
+#             }}) AS {collection}
+#     }}
+#     """
+
+# query_network_reaction_positive_regulators: LiteralString = (
+#     query_network_reaction_regulators(
+#         label="PositiveRegulation",
+#         role="positive_regulator",
+#         collection="positiveRegulators",
+#     )
+# )
+#
+# query_network_reaction_negative_regulators: LiteralString = (
+#     query_network_reaction_regulators(
+#         label="NegativeRegulation",
+#         role="negative_regulator",
+#         collection="negativeRegulators",
+#     )
+# )
+# positiveRegulators + negativeRegulators
+
+# {query_network_reaction_positive_regulators}
+# {query_network_reaction_negative_regulators}
+
+# query_network_reaction_outputs: LiteralString = f"""
+# CALL {{
+#     WITH {_network_reaction}
+#     MATCH ({_network_reaction})-[relationship:output]->({_network_physical_entity}:PhysicalEntity)
+#     RETURN
+#         COLLECT({{
+#             physicalEntity: {_network_physical_entity},
+#             stoichiometry: relationship.stoichiometry,
+#             role: "output"
+#         }}) AS outputs
+# }}
+# """
+
+# {query_network_reaction_outputs}
+
+
+# environment_generator=EnvironmentGenerator(
+#     environment_physical_entities
+# ),
+
+# EnvironmentGenerator,
+# """Well known kinetic laws."""
+# """Return reaction law and generate parameters."""
+
+# from enum import StrEnum, auto
+# class KineticConstantPurpose(StrEnum):
+#     HALF_SATURATION = auto()
+#     FORWARD_REACTION = auto()
+#     REVERSE_REACTION = auto()
+
+
+# environment_physical_entities.add(obj)
+
+# environment_generator=EnvironmentGenerator(
+#     {
+#         physical_entity.getId()
+#         for physical_entity in sbml_model.getListOfSpecies()
+#     }
+# ),
+
+# Environment: TypeAlias = dict[SId, NormalizedReal]
+
+# @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
+# class EnvironmentGenerator:
+#     """An environment dictates the initial conditions of the simulation (initial amounts of the species)."""
+#
+#     physical_entities: set[PhysicalEntity]
+#
+#     def __call__(self) -> Environment:
+#         return {
+#             repr(physical_entity): NormalizedReal(random.uniform(0, 1))
+#             for physical_entity in self.physical_entities
+#         }
+
+# environment_generator: EnvironmentGenerator
+
+
+# ReactionLikeEvent,
+# """A virtual patient is described by the set of kinetic."""
