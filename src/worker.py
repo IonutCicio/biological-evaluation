@@ -56,7 +56,7 @@ def main() -> None:
     blackbox_end_time = datetime.datetime.now(tz=datetime.UTC)
 
     trial_info = {
-        "cost": (blackbox_end_time - blackbox_start_time).seconds,
+        "cost": str(blackbox_end_time - blackbox_start_time),
         "worker_id": os.getenv("SLURM_JOB_ID"),
         "trial_info": "" if loss else FAILED,
     }
