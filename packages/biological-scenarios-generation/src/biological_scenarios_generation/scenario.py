@@ -476,7 +476,22 @@ class BiologicalScenarioDefinition:
                         and obj.id
                         in biological_network.output_physical_entities
                     ):
-                        species.setInitialConcentration(0.9)
+                        stable_constant: libsbml.Parameter = (
+                            sbml_model.createParameter()
+                        )
+                        stable_constant.setId(f"k_{obj}")
+                        stable_constant.setValue(0.0)
+                        stable_constant.setConstant(True)
+                        kinetic_constants.add(stable_constant.getId())
+
+                        rule: libsbml.AssignmentRule = (
+                            sbml_model.createAssignmentRule()
+                        )
+                        rule.setVariable(f"{species.getId()}")
+                        rule.setMath(
+                            libsbml.parseFormula(stable_constant.getId())
+                        )
+                        sbml_model.addRule(rule)
                     elif (
                         obj.id in biological_network.input_physical_entities
                         or obj.id in biological_network.output_physical_entities

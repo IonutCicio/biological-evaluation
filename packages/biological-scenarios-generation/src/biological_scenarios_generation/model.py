@@ -60,6 +60,9 @@ class BiologicalModel:
 
     def __call__(self) -> VirtualPatient:
         return {
-            kinetic_constant: 10 ** random.uniform(-20, 20)
+            kinetic_constant: 10
+            ** random.uniform(
+                -20, 0.0 if kinetic_constant.startswith("k_s_") else 20.0
+            )
             for kinetic_constant in self.kinetic_constants
         }

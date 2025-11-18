@@ -32,7 +32,7 @@ def main() -> None:
             space.Real(
                 name=kinetic_constant,
                 lower=-20.0,
-                upper=20.0,
+                upper=0.0 if kinetic_constant.startswith("k_s_") else 20.0,
                 default_value=0.0,
             )
             for kinetic_constant in biological_model.kinetic_constants

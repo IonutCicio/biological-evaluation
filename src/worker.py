@@ -58,7 +58,7 @@ def main() -> None:
     trial_info = {
         "cost": (blackbox_end_time - blackbox_start_time).seconds,
         "worker_id": os.getenv("SLURM_JOB_ID"),
-        "trial_info": None,
+        "trial_info": "" if loss else FAILED,
     }
 
     buckpass.openbox_api.update_observation(
@@ -68,8 +68,7 @@ def main() -> None:
         objectives=[
             loss
             if loss
-            else len(biological_model.sbml_document.getModel().getNumSpecies())
-            * 10
+            else biological_model.sbml_document.getModel().getNumSpecies() * 3
         ],
         constraints=[],
         trial_info=trial_info,
