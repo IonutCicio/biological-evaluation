@@ -54,6 +54,7 @@ def main() -> None:
         parallel_type="async",
         initial_runs=0,
         random_state=1,
+        active_worker_num=10,
         max_runs=1000,
     )
 
