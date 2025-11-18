@@ -34,14 +34,18 @@ def main() -> None:
         args.task
     ).strip()
 
+    load_model_start_time = datetime.datetime.now(tz=datetime.UTC)
     document: libsbml.SBMLDocument = libsbml.readSBML(
         f"{os.getenv('CLUSTER_PROJECT_PATH')}{model_file}"
     )
     biological_model = BiologicalModel.load(document)
+    load_model_end_time = datetime.datetime.now(tz=datetime.UTC)
 
+    suggestion_start_time = datetime.datetime.now(tz=datetime.UTC)
     suggestion: dict[str, float] = buckpass.openbox_api.get_suggestion(
         url=OPENBOX_URL, task_id=openbox_task_id
     )
+    suggestion_end_time = datetime.datetime.now(tz=datetime.UTC)
 
     blackbox_start_time = datetime.datetime.now(tz=datetime.UTC)
     loss: float | None = None
@@ -58,9 +62,10 @@ def main() -> None:
     trial_info = {
         "cost": str(blackbox_end_time - blackbox_start_time),
         "worker_id": os.getenv("SLURM_JOB_ID"),
-        "trial_info": "" if loss else FAILED,
+        "trial_info": f"load: {load_model_end_time - load_model_start_time}; suggestion: {suggestion_end_time - suggestion_start_time}",
     }
 
+    observation_start_time = datetime.datetime.now(tz=datetime.UTC)
     buckpass.openbox_api.update_observation(
         url=OPENBOX_URL,
         task_id=openbox_task_id,
@@ -74,6 +79,8 @@ def main() -> None:
         trial_info=trial_info,
         trial_state=SUCCESS if loss else FAILED,
     )
+    observation_end_time = datetime.datetime.now(tz=datetime.UTC)
+    print(observation_end_time - observation_start_time, flush=True)
 
 
 if __name__ == "__main__":

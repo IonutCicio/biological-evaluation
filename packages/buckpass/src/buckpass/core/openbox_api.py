@@ -35,7 +35,6 @@ def get_suggestion(url: URL, task_id: TaskId):
     )
     response: dict[str, Any] = json.loads(result.text)
 
-    print("suggestion!", response)
     assert response["code"]
     return json.loads(response["res"])
 
@@ -62,7 +61,6 @@ def update_observation(
         timeout=10000,
     )
 
-    print("observation!", result.text)
     response = json.loads(result.text)
 
     assert response["code"]
