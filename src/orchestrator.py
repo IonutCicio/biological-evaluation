@@ -51,6 +51,9 @@ def main() -> None:
         sample_strategy="bo",
         surrogate_type="prf",
         acq_type="ei",
+        parallel_type="async",
+        initial_runs=0,
+        random_state=1,
         max_runs=1000,
     )
 

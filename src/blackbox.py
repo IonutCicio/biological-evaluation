@@ -75,8 +75,8 @@ def _blackbox(
 
     for left, right in biological_model.physical_entities_constraints:
         pass
-
-    return (result, rr, normalization_loss + transitory_loss)
+    # + transitory_loss
+    return (result, rr, normalization_loss)
 
 
 def blackbox(
