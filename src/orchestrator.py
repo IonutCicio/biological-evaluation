@@ -54,9 +54,6 @@ def main() -> None:
         max_runs=1000,
     )
 
-    # TODO: random forest
-    # upper=0.0 if "k_h_" in kinetic_constant else 20.0,
-
     _ = BurstPolicy(
         args=f"--task {remote_advisor.task_id} --file {model_file}",
         size=buckpass.core.IntGTZ(1000),

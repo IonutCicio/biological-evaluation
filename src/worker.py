@@ -47,13 +47,11 @@ def main() -> None:
     loss: float | None = None
     with contextlib.suppress(builtins.BaseException):
         loss = blackbox(
-            document=biological_model.document,
+            biological_model,
             virtual_patient={
                 kinetic_constant: 10**value
                 for kinetic_constant, value in suggestion.items()
             },
-            physical_entities_constraints=set(),
-            kinetic_constants_constraints=set(),
         )
     blackbox_end_time = datetime.datetime.now(tz=datetime.UTC)
 

@@ -1,14 +1,16 @@
 import os
 import re
+from dataclasses import dataclass
 from typing import TypeAlias
 
 import libsbml
 import numpy as np
 import pylab
 import roadrunner
-from biological_scenarios_generation.core import PartialOrder
-from biological_scenarios_generation.model import PhysicalEntity, VirtualPatient
-from biological_scenarios_generation.reactome import DatabaseObject
+from biological_scenarios_generation.model import (
+    BiologicalModel,
+    VirtualPatient,
+)
 
 Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
@@ -16,38 +18,29 @@ Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 class ViolatedKineticConstantsPartialOrderError(Exception): ...
 
 
+@dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
+class Loss:
+    pass
+
+
 def _blackbox(
-    document: libsbml.SBMLDocument,
-    virtual_patient: VirtualPatient,
-    physical_entities_constraints: PartialOrder[PhysicalEntity],
-    kinetic_constants_constraints: PartialOrder[DatabaseObject],
+    biological_model: BiologicalModel, virtual_patient: VirtualPatient
 ) -> tuple[Trajectory, roadrunner.RoadRunner, float]:
-    print(kinetic_constants_constraints)
-    for l, r in kinetic_constants_constraints:
+    for left, right in biological_model.kinetic_constants_constraints:
         for kinetic_constant_1 in virtual_patient:
             for kinetic_constant_2 in virtual_patient:
                 if (
-                    repr(l) in kinetic_constant_1
-                    and repr(r) in kinetic_constant_2
-                    and "f_" in kinetic_constant_1
-                    and "f_" in kinetic_constant_2
+                    repr(left) in kinetic_constant_1
+                    and repr(right) in kinetic_constant_2
+                    and kinetic_constant_1.startswith("k_f_")
+                    and kinetic_constant_2.startswith("k_f_")
                     and virtual_patient[kinetic_constant_1]
                     > virtual_patient[kinetic_constant_2]
                 ):
-                    print(
-                        "k1",
-                        kinetic_constant_1,
-                        "\nk2",
-                        kinetic_constant_2,
-                        "\nk1_v",
-                        virtual_patient[kinetic_constant_1],
-                        "\nk2_v",
-                        virtual_patient[kinetic_constant_2],
-                    )
                     raise ViolatedKineticConstantsPartialOrderError
 
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(
-        libsbml.writeSBMLToString(document)
+        libsbml.writeSBMLToString(biological_model.sbml_document)
     )
 
     for k, value in virtual_patient.items():
@@ -80,35 +73,26 @@ def _blackbox(
             slope = (y_2 - y_1) / (x_2 - x_1) if x_1 != x_2 else 0
             transitory_loss += abs(float(np.arctan(slope)))
 
+    for left, right in biological_model.physical_entities_constraints:
+        pass
+
     return (result, rr, normalization_loss + transitory_loss)
 
 
 def blackbox(
-    document: libsbml.SBMLDocument,
-    virtual_patient: VirtualPatient,
-    physical_entities_constraints: PartialOrder[PhysicalEntity],
-    kinetic_constants_constraints: PartialOrder[DatabaseObject],
+    biological_model: BiologicalModel, virtual_patient: VirtualPatient
 ) -> float:
     (_, _, loss) = _blackbox(
-        document,
-        virtual_patient,
-        physical_entities_constraints,
-        kinetic_constants_constraints,
+        biological_model=biological_model, virtual_patient=virtual_patient
     )
     return loss
 
 
 def blackbox_with_plot(
-    document: libsbml.SBMLDocument,
-    virtual_patient: VirtualPatient,
-    physical_entities_constraints: PartialOrder[PhysicalEntity],
-    kinetic_constants_constraints: PartialOrder[DatabaseObject],
+    biological_model: BiologicalModel, virtual_patient: VirtualPatient
 ) -> float:
     (trajectory, rr, loss) = _blackbox(
-        document,
-        virtual_patient,
-        physical_entities_constraints,
-        kinetic_constants_constraints,
+        biological_model=biological_model, virtual_patient=virtual_patient
     )
 
     time = trajectory[:, 0]
@@ -122,6 +106,33 @@ def blackbox_with_plot(
     pylab.show()
 
     return loss
+
+
+# print(
+#     "k1",
+#     kinetic_constant_1,
+#     "\nk2",
+#     kinetic_constant_2,
+#     "\nk1_v",
+#     virtual_patient[kinetic_constant_1],
+#     "\nk2_v",
+#     virtual_patient[kinetic_constant_2],
+# )
+
+
+# document: libsbml.SBMLDocument,
+# physical_entities_constraints: PartialOrder[PhysicalEntity],
+# kinetic_constants_constraints: PartialOrder[ReactomeDbId],
+
+# bioloidocument,
+# virtual_patient,
+# physical_entities_constraints,
+# kinetic_constants_constraints,
+
+# document,
+# virtual_patient,
+# physical_entities_constraints,
+# kinetic_constants_constraints,
 
 
 # for i in range(len(trajectory[:, col_number])):

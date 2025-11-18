@@ -44,7 +44,7 @@ def main() -> None:
                 adenosine_diphsphate,
             },
             constraints={(nitric_oxide, cyclic_amp)},
-            max_depth=IntGTZ(3),
+            max_depth=IntGTZ(4),
         )
     )
 
@@ -73,10 +73,7 @@ def main() -> None:
 
     try:
         loss = blackbox_with_plot(
-            document=biological_model.sbml_document,
-            virtual_patient=biological_model(),
-            physical_entities_constraints=biological_model.physical_entities_constraints,
-            kinetic_constants_constraints=biological_model.kinetic_constants_constraints,
+            biological_model, virtual_patient=biological_model()
         )
         logger.info(loss)
     except Exception:

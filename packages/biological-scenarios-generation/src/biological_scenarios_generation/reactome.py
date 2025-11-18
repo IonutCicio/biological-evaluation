@@ -87,14 +87,14 @@ class PhysicalEntity(DatabaseObject):
         return f"s_{super().__repr__()}"
 
 
-class SpeciesCategory(StrEnum):
+class Category(StrEnum):
     INPUT = auto()
     OUTPUT = auto()
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class SpeciesMetadata:
-    category: SpeciesCategory
+class Metadata:
+    category: Category
     stoichiometry: Stoichiometry
 
 
@@ -107,10 +107,10 @@ class ModifierCategory(StrEnum):
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class ModifierMetadata:
     category: ModifierCategory
-    produced_by: set[DatabaseObject]
+    produced_by: set[ReactomeDbId]
 
 
-PhysicalEntityMetadata: TypeAlias = SpeciesMetadata | ModifierMetadata
+PhysicalEntityMetadata: TypeAlias = Metadata | ModifierMetadata
 
 
 class Event(DatabaseObject):
@@ -139,27 +139,21 @@ class ReactionLikeEvent(Event):
         return f"r_{super().__repr__()}"
 
     def modifiers(
-        self, modifier_category: ModifierCategory | None = None
+        self, category: ModifierCategory | None = None
     ) -> set[tuple[PhysicalEntity, ModifierMetadata]]:
         return {
             (physical_entity, metadata)
             for physical_entity, metadata in self.physical_entities.items()
             if isinstance(metadata, ModifierMetadata)
-            and (
-                modifier_category is None
-                or metadata.category == modifier_category
-            )
+            and (category is None or metadata.category == category)
         }
 
-    def entities(
-        self, species_cateogry: SpeciesCategory | None = None
-    ) -> set[tuple[PhysicalEntity, SpeciesMetadata]]:
+    def species(
+        self, cateogry: Category | None = None
+    ) -> set[tuple[PhysicalEntity, Metadata]]:
         return {
             (physical_entity, metadata)
             for physical_entity, metadata in self.physical_entities.items()
-            if isinstance(metadata, SpeciesMetadata)
-            and (
-                species_cateogry is None
-                or metadata.category == species_cateogry
-            )
+            if isinstance(metadata, Metadata)
+            and (cateogry is None or metadata.category == cateogry)
         }

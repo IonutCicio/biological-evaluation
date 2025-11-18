@@ -1,3 +1,4 @@
+import json
 import random
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -6,8 +7,8 @@ import libsbml
 
 from biological_scenarios_generation.core import PartialOrder
 from biological_scenarios_generation.reactome import (
-    DatabaseObject,
     PhysicalEntity,
+    ReactomeDbId,
 )
 
 SId: TypeAlias = str
@@ -19,20 +20,42 @@ VirtualPatient: TypeAlias = dict[SId, float]
 class BiologicalModel:
     sbml_document: libsbml.SBMLDocument
     kinetic_constants: set[SId]
-    kinetic_constants_constraints: PartialOrder[DatabaseObject]
+    kinetic_constants_constraints: PartialOrder[ReactomeDbId]
     physical_entities_constraints: PartialOrder[PhysicalEntity]
 
     @staticmethod
     def load(document: libsbml.SBMLDocument) -> "BiologicalModel":
+        constraints: dict[str, list[tuple[ReactomeDbId, ReactomeDbId]]] = (
+            json.loads(
+                libsbml.XMLNode.convertXMLNodeToString(
+                    document.getModel()
+                    .getAnnotation()
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(0)
+                ).replace("&quot;", '"')
+            )
+        )
+
         return BiologicalModel(
             sbml_document=document,
             kinetic_constants={
-                p.getId()
-                for p in document.getModel().getListOfParameters()
-                if "time" not in p.getId() and "mean" not in p.getId()
+                parameter.getId()
+                for parameter in document.getModel().getListOfParameters()
+                if parameter.getId().startswith("k_")
             },
-            physical_entities_constraints=set(),
-            kinetic_constants_constraints=set(),
+            physical_entities_constraints={
+                (PhysicalEntity(left), PhysicalEntity(right))
+                for (left, right) in constraints[
+                    "physical_entities_constraints"
+                ]
+            },
+            kinetic_constants_constraints={
+                (left, right)
+                for (left, right) in constraints[
+                    "kinetic_constants_constraints"
+                ]
+            },
         )
 
     def __call__(self) -> VirtualPatient:

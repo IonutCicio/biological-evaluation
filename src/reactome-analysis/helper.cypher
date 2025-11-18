@@ -147,3 +147,52 @@ MATCH
   path2 = (r)-[:input|output*..4]-(complex)
 RETURN path, path2
 LIMIT 1
+
+// count catalysts which are not inputs of reactions
+MATCH
+  path =
+    (r:ReactionLikeEvent)-[:catalystActivity]->
+    (:CatalystActivity)-[:physicalEntity]->
+    (m:PhysicalEntity)
+WHERE
+  NOT EXISTS {
+    MATCH (r)-[:input]->(m)
+  }
+RETURN COUNT(DISTINCT path)
+
+// count catalysts which are inputs of reactions
+MATCH
+  path =
+    (r:ReactionLikeEvent)-[:catalystActivity]->
+    (:CatalystActivity)-[:physicalEntity]->
+    (m:PhysicalEntity)
+WHERE
+  EXISTS {
+    MATCH (r)-[:input]->(m)
+  }
+RETURN COUNT(DISTINCT path)
+
+// same for regulators
+MATCH
+  path =
+    (r:ReactionLikeEvent)-[:regulatedBy]->
+    (:Regulation)-[:regulator]->
+    (m:PhysicalEntity)
+WHERE
+  NOT EXISTS {
+    MATCH (r)-[:input]->(m)
+  }
+RETURN COUNT(DISTINCT path) // ~ 1000
+
+// same for inputs and outputs
+MATCH
+  path =
+    (n:PhysicalEntity)<-[:output]-
+    (r:ReactionLikeEvent)-[:input]->
+    (m:PhysicalEntity)
+WHERE
+  EXISTS {
+    MATCH (r)-[:input]->(n)
+  }
+RETURN path
+RETURN COUNT(DISTINCT path) // ~ 2932

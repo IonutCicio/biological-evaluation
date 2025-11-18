@@ -32,7 +32,7 @@ class URL:
 def get_suggestion(url: URL, task_id: TaskId):
     response: dict[str, Any] = json.loads(
         requests.post(
-            f"{url}get_suggestion/", data={"task_id": task_id}, timeout=100
+            f"{url}get_suggestion/", data={"task_id": task_id}, timeout=1000
         ).text
     )
 
@@ -60,7 +60,7 @@ def update_observation(
                 "trial_state": trial_state,
                 "trial_info": json.dumps(trial_info),
             },
-            timeout=100,
+            timeout=1000,
         ).text
     )
 
