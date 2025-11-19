@@ -6,7 +6,6 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 from openbox import space
-from openbox.artifact.remote_advisor import RemoteAdvisor
 
 policy: (
     None | BurstPolicy[buckpass.core.SlurmJobId, buckpass.core.OpenBoxTaskId]
@@ -39,19 +38,21 @@ def main() -> None:
         ]
     )
 
-    remote_advisor: RemoteAdvisor = RemoteAdvisor(
+    task_id = buckpass.openbox_api.register_task(
         config_space=_space,
         server_ip="localhost",
         port=8000,
         email="test@test.test",
-        password=os.getenv("OPENBOX_PASSWORD"),
+        password=str(os.getenv("OPENBOX_PASSWORD")),
         task_name=model_file,
         num_objectives=1,
         num_constraints=0,
+        advisor_type="tpe",
         sample_strategy="bo",
         surrogate_type="prf",
         acq_type="ei",
         parallel_type="async",
+        acq_optimizer_type="random_scipy",
         initial_runs=0,
         random_state=1,
         active_worker_num=1,
@@ -59,7 +60,7 @@ def main() -> None:
     )
 
     _ = BurstPolicy(
-        args=f"--task {remote_advisor.task_id} --file {model_file}",
+        args=f"--task {task_id} --file {model_file}",
         size=buckpass.core.IntGTZ(10000),
         submitter=buckpass.Uniroma1Submitter(),
     )
@@ -67,3 +68,33 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# from openbox.artifact.remote_advisor import RemoteAdvisor
+
+# remote_advisor
+# - 'tpe': Tree-structured Parzen Estimator
+# - 'ea': Evolutionary Algorithms
+# - 'random': Random Search
+# - 'mcadvisor': Bayesian Optimization with Monte Carlo Sampling
+
+# remote_advisor: RemoteAdvisor = RemoteAdvisor(
+#     config_space=_space,
+#     server_ip="localhost",
+#     port=8000,
+#     email="test@test.test",
+#     password=os.getenv("OPENBOX_PASSWORD"),
+#     task_name=model_file,
+#     num_objectives=1,
+#     num_constraints=0,
+#     advisor_type="tpe",
+#     sample_strategy="bo",
+#     surrogate_type="prf",
+#     acq_type="ei",
+#     parallel_type="async",
+#     acq_optimizer_type="random_scipy",
+#     initial_runs=0,
+#     random_state=1,
+#     active_worker_num=1,
+#     max_runs=1000,
+# )
+# remote_advisor.task_id

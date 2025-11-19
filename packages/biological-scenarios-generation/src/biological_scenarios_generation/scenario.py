@@ -101,6 +101,7 @@ class BiologicalScenarioDefinition:
         def __post_init__(self) -> None:
             assert self.network
 
+    # TODO: set the species of the entities! Otherwise you look for other stuff
     def __reachable_biochemical_network(
         self, neo4j_driver: neo4j.Driver
     ) -> _BiochemicalNetwork:
@@ -510,7 +511,11 @@ class BiologicalScenarioDefinition:
 
                         e_species_ref: libsbml.SpeciesReference = (
                             sbml_model.createProduct()
+                            if obj.id
+                            in biological_network.input_physical_entities
+                            else sbml_model.createReactant()
                         )
+
                         e_species_ref.setSpecies(f"{obj}")
                         e_species_ref.setConstant(False)
                         e_species_ref.setStoichiometry(1)

@@ -3,7 +3,7 @@ services:
     image: mongo:4.4
     env_file: .env
     volumes:
-      - simulation_data:/data/db
+      - trials:/data/db
 
   open-box:
     build:
@@ -22,9 +22,9 @@ services:
     env_file: .env
 
 volumes:
-  simulation_data:
+  trials:
     driver: local
     driver_opts:
       o: bind
       type: none
-      device: ./simulation_data
+      device: ./trials

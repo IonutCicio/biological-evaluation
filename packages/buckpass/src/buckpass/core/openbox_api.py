@@ -1,8 +1,11 @@
+import hashlib
 import json
 import re
 from typing import Any
 
 import requests
+from openbox.utils.config_space import Configuration
+from openbox.utils.config_space import json as config_json
 from typing_extensions import override
 
 TaskId = str
@@ -27,6 +30,96 @@ class URL:
     @override
     def __repr__(self) -> str:
         return self.__url
+
+
+# TODO: add check_setup
+def register_task(
+    config_space,
+    server_ip,
+    port,
+    email: str,
+    password: str,
+    task_name: str = "task",
+    num_objectives: int = 1,
+    num_constraints: int = 0,
+    advisor_type: str = "default",
+    sample_strategy: str = "bo",
+    surrogate_type: None | str = None,
+    acq_type: None | str = None,
+    acq_optimizer_type: str = "local_random",
+    max_runs: int = 100,
+    init_strategy: str = "random_explore_first",
+    initial_configurations=None,
+    initial_runs: int = 3,
+    random_state: None | int = None,
+    max_runtime_per_trial=None,
+    active_worker_num: int = 1,
+    parallel_type: str = "async",
+) -> str:
+    # email = email
+    md5 = hashlib.md5()
+    md5.update(password.encode("utf-8"))
+    password = md5.hexdigest()
+
+    # Store and serialize config space
+    # config_space = config_space
+    config_space_json = config_json.write(config_space)
+
+    # Check setup
+    # self.num_objectives = num_objectives
+    # self.num_constraints = num_constraints
+    # self.acq_type = acq_type
+    # constraint_surrogate_type = None
+    # self.surrogate_type = surrogate_type
+    # check_setup()
+
+    # Set options
+    if initial_configurations is not None and isinstance(
+        initial_configurations[0], Configuration
+    ):
+        initial_configurations = [
+            config.get_dictionary() for config in initial_configurations
+        ]
+    # self.max_runs = max_runs
+    options = {
+        "optimization_strategy": sample_strategy,
+        "surrogate_type": surrogate_type,
+        "acq_type": acq_type,
+        "acq_optimizer_type": acq_optimizer_type,
+        "init_strategy": init_strategy,
+        "initial_configurations": initial_configurations,
+        "initial_trials": initial_runs,
+        "random_state": random_state,
+    }
+
+    # Construct base url.
+    base_url = "http://%s:%d/bo_advice/" % (server_ip, port)
+
+    # Register task
+    res = requests.post(
+        base_url + "task_register/",
+        data={
+            "advisor_type": advisor_type,
+            "email": email,
+            "password": password,
+            "task_name": task_name,
+            "config_space_json": config_space_json,
+            "num_constraints": num_constraints,
+            "num_objectives": num_objectives,
+            "max_runs": max_runs,
+            "options": json.dumps(options),
+            "max_runtime_per_trial": max_runtime_per_trial,
+            "active_worker_num": active_worker_num,
+            "parallel_type": parallel_type,
+        },
+    )
+    res = json.loads(res.text)
+
+    if res["code"] == 1:
+        task_id = res["task_id"]
+        return task_id
+    else:
+        raise Exception("Server error %s" % res["msg"])
 
 
 def get_suggestion(url: URL, task_id: TaskId):

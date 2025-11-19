@@ -29,26 +29,3 @@ HER2: A signaling protein that requires minimal amounts for effective signaling
 input: { 29356, 29364, 29368, 29468, 5693375, 1497830, 164358, 5610577, 5610579
 
 output: { 70106, 29968, 29336, 202124
-
-use openbox
-db.task.find().sort({create_time: -1}).limit(1)[0]._id
-db.runhistory.find({task_id: "69147f79ffc036549f3a1ab9"}).sort({result: 1})[0].result
-db.runhistory.find({task_id: "69147f79ffc036549f3a1ab9"}).sort({result: 1}).size()
-db.runhistory.find({task_id: "69147f79ffc036549f3a1ab9"}).sort({result: 1}).limit(10).map(x => x.result[0])
-db.runhistory.find({task_id: "69147f79ffc036549f3a1ab9"}).sort({result: 1}).map(x => x.result[0])
-
-db.runhistory.find({task_id: "69148863ffc036549f3a1fb2"}).sort({result: 1})[0].result
-db.runhistory.find({task_id: "69148863ffc036549f3a1fb2"}).sort({result: 1}).size()
-db.runhistory.find({task_id: "69148863ffc036549f3a1fb2"}).sort({result: 1}).limit(10).map(x => x.result[0])
-db.runhistory.find({task_id: "69148863ffc036549f3a1fb2"}).sort({result: 1}).map(x => x.result[0])
-
-"6911aaacffc036549f39fa4c"/"69148863ffc036549f3a1fb2"
-
-"6914b618ffc036549f3a25cf"
-
-db.runhistory.find({task_id: "6914b618ffc036549f3a25cf"}).sort({result: 1})[0].result
-db.runhistory.find({task_id: "6914b618ffc036549f3a25cf"}).sort({result: 1}).size()
-db.runhistory.find({task_id: "6914b618ffc036549f3a25cf"}).sort({result: 1}).limit(10).map(x => x.result[0])
-db.runhistory.find({task_id: "6914b618ffc036549f3a25cf"}).sort({result: 1}).map(x => x.result[0])
-
-"69148863ffc036549f3a1fb2"/"6914b618ffc036549f3a25cf"
