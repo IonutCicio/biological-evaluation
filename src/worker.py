@@ -1,8 +1,8 @@
 import argparse
 import builtins
 import contextlib
-import datetime
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 import buckpass
@@ -25,7 +25,7 @@ def main() -> None:
     _ = argument_parser.add_argument("-f", "--file", required=True)
     args = argument_parser.parse_args()
 
-    start_time = datetime.datetime.now(tz=datetime.UTC)
+    start_time = datetime.now(tz=UTC)
 
     model_file: str = str(args.file).strip()
     model_path = Path(model_file)
@@ -36,20 +36,20 @@ def main() -> None:
         args.task
     ).strip()
 
-    load_model_start_time = datetime.datetime.now(tz=datetime.UTC)
+    load_model_start_time = datetime.now(tz=UTC)
     document: libsbml.SBMLDocument = libsbml.readSBML(
         f"{os.getenv('CLUSTER_PROJECT_PATH')}{model_file}"
     )
     biological_model = BiologicalModel.load(document)
-    load_model_end_time = datetime.datetime.now(tz=datetime.UTC)
+    load_model_end_time = datetime.now(tz=UTC)
 
-    suggestion_start_time = datetime.datetime.now(tz=datetime.UTC)
+    suggestion_start_time = datetime.now(tz=UTC)
     suggestion: dict[str, float] = buckpass.openbox_api.get_suggestion(
         url=OPENBOX_URL, task_id=openbox_task_id
     )
-    suggestion_end_time = datetime.datetime.now(tz=datetime.UTC)
+    suggestion_end_time = datetime.now(tz=UTC)
 
-    blackbox_start_time = datetime.datetime.now(tz=datetime.UTC)
+    blackbox_start_time = datetime.now(tz=UTC)
     loss: float | None = None
     with contextlib.suppress(builtins.BaseException):
         loss = blackbox(
@@ -59,15 +59,9 @@ def main() -> None:
                 for kinetic_constant, value in suggestion.items()
             },
         )
-    blackbox_end_time = datetime.datetime.now(tz=datetime.UTC)
+    blackbox_end_time = datetime.now(tz=UTC)
 
-    trial_info = {
-        "cost": str(blackbox_end_time - blackbox_start_time),
-        "worker_id": os.getenv("SLURM_JOB_ID"),
-        "trial_info": f'{{ "start_time": {start_time}, "load_duration": {load_model_end_time - load_model_start_time}, "suggestion_duration": {suggestion_end_time - suggestion_start_time} }}',
-    }
-
-    observation_start_time = datetime.datetime.now(tz=datetime.UTC)
+    observation_start_time = datetime.now(tz=UTC)
     buckpass.openbox_api.update_observation(
         url=OPENBOX_URL,
         task_id=openbox_task_id,
@@ -75,13 +69,23 @@ def main() -> None:
         objectives=[
             loss
             if loss
-            else biological_model.sbml_document.getModel().getNumSpecies() * 3
+            else biological_model.sbml_document.getModel().getNumSpecies()
         ],
         constraints=[],
-        trial_info=trial_info,
+        trial_info={
+            "cost": str(blackbox_end_time - blackbox_start_time),
+            "worker_id": os.getenv("SLURM_JOB_ID"),
+            "trial_info": f"""
+            {{
+                "start_time": {start_time},
+                "load_duration": {load_model_end_time - load_model_start_time},
+                "suggestion_duration": {suggestion_end_time - suggestion_start_time}
+            }}
+        """,
+        },
         trial_state=SUCCESS if loss else FAILED,
     )
-    observation_end_time = datetime.datetime.now(tz=datetime.UTC)
+    observation_end_time = datetime.now(tz=UTC)
     print(observation_end_time - observation_start_time, flush=True)
 
 

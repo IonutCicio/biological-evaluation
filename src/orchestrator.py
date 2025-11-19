@@ -54,13 +54,13 @@ def main() -> None:
         parallel_type="async",
         initial_runs=0,
         random_state=1,
-        active_worker_num=10,
+        active_worker_num=1,
         max_runs=1000,
     )
 
     _ = BurstPolicy(
         args=f"--task {remote_advisor.task_id} --file {model_file}",
-        size=buckpass.core.IntGTZ(1000),
+        size=buckpass.core.IntGTZ(10000),
         submitter=buckpass.Uniroma1Submitter(),
     )
 
