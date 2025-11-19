@@ -38,6 +38,8 @@ def main() -> None:
         ]
     )
 
+    max_runs = 10000
+
     task_id = buckpass.openbox_api.register_task(
         config_space=_space,
         server_ip="localhost",
@@ -56,12 +58,12 @@ def main() -> None:
         initial_runs=0,
         random_state=1,
         active_worker_num=1,
-        max_runs=1000,
+        max_runs=max_runs,
     )
 
     _ = BurstPolicy(
         args=f"--task {task_id} --file {model_file}",
-        size=buckpass.core.IntGTZ(10000),
+        size=buckpass.core.IntGTZ(max_runs),
         submitter=buckpass.Uniroma1Submitter(),
     )
 
