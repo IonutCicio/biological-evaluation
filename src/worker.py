@@ -25,6 +25,8 @@ def main() -> None:
     _ = argument_parser.add_argument("-f", "--file", required=True)
     args = argument_parser.parse_args()
 
+    start_time = datetime.datetime.now(tz=datetime.UTC)
+
     model_file: str = str(args.file).strip()
     model_path = Path(model_file)
     assert model_path.exists()
@@ -62,7 +64,7 @@ def main() -> None:
     trial_info = {
         "cost": str(blackbox_end_time - blackbox_start_time),
         "worker_id": os.getenv("SLURM_JOB_ID"),
-        "trial_info": f"load: {load_model_end_time - load_model_start_time}; suggestion: {suggestion_end_time - suggestion_start_time}",
+        "trial_info": f'{{ "start_time": {start_time}, "load_duration": {load_model_end_time - load_model_start_time}, "suggestion_duration": {suggestion_end_time - suggestion_start_time} }}',
     }
 
     observation_start_time = datetime.datetime.now(tz=datetime.UTC)
