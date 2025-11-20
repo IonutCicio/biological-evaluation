@@ -2,9 +2,9 @@ import argparse
 import builtins
 import contextlib
 import os
+import re
 from datetime import UTC, datetime
 from pathlib import Path
-import re
 
 import buckpass
 import libsbml
@@ -76,8 +76,8 @@ def main() -> None:
         url=OPENBOX_URL,
         task_id=openbox_task_id,
         config_dict=suggestion,
-        constraints=[],
         objectives=cost.normalization if cost else [1] * normalization_len,
+        constraints=[],
         trial_info={
             "cost": str(blackbox_end_time - blackbox_start_time),
             "worker_id": os.getenv("SLURM_JOB_ID"),

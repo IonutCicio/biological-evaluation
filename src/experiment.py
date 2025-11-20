@@ -71,13 +71,13 @@ def main() -> None:
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
 
-    # virtual_patient={
-    #     kinetic_constant: 10**value
-    #     for kinetic_constant, value in kinetic_constants.items()
-    # },
+    virtual_patient = {
+        kinetic_constant: 1.0
+        for kinetic_constant in biological_model.kinetic_constants
+    }
 
     try:
-        cost = plot(biological_model, virtual_patient=biological_model())
+        cost = plot(biological_model, virtual_patient=virtual_patient)
         logger.info(cost)
         print(cost.normalization, cost.transitory, sep="\n")
     except Exception:

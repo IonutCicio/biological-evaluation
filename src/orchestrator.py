@@ -41,6 +41,17 @@ def main() -> None:
 
     max_runs = 10000
 
+    num_objectives = (
+        biological_model.sbml_document.getModel().getNumSpecies()
+        - len(
+            {
+                kinetic_constant
+                for kinetic_constant in biological_model.kinetic_constants
+                if re.match(r"k_s_\d+", kinetic_constant)
+            }
+        )
+    )
+
     task_id = buckpass.openbox_api.register_task(
         config_space=_space,
         server_ip="localhost",
@@ -48,21 +59,11 @@ def main() -> None:
         email="test@test.test",
         password=str(os.getenv("OPENBOX_PASSWORD")),
         task_name=model_file,
-        num_objectives=(
-            # TODO: * 2
-            (biological_model.sbml_document.getModel().getNumSpecies())
-            - len(
-                {
-                    kinetic_constant
-                    for kinetic_constant in biological_model.kinetic_constants
-                    if re.match(r"k_s_\d+", kinetic_constant)
-                }
-            )
-        ),
+        num_objectives=num_objectives,
         num_constraints=0,
         advisor_type="tpe",
         sample_strategy="bo",
-        surrogate_type="lightgbm",
+        surrogate_type="prf",
         acq_type="ei",
         parallel_type="async",
         acq_optimizer_type="random_scipy",
