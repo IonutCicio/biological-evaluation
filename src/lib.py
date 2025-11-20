@@ -21,10 +21,11 @@ def source_env() -> Arguments:
     args = argument_parser.parse_args()
 
     _ = load_dotenv()
-    _ = load_dotenv(dotenv_path=args.env)
+    _ = load_dotenv(dotenv_path=str(args.env).strip())
 
     return Arguments(
-        env=args.env, task_id=buckpass.core.OpenBoxTaskId(args.task)
+        env=args.env,
+        task_id=buckpass.core.OpenBoxTaskId(str(args.task).strip()),
     )
 
 
