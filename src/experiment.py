@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 
 import libsbml
@@ -24,10 +25,7 @@ _ = source_env()
 
 def main() -> None:
     logger = logging.getLogger(__name__)
-    logging.basicConfig(
-        filename=f"{Path(__file__).stem}.log", level=logging.INFO
-    )
-    # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     signal_transduction = Pathway(ReactomeDbId(162582))
     nitric_oxide = PhysicalEntity(ReactomeDbId(202124))
@@ -75,6 +73,8 @@ def main() -> None:
 
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
+
+    exit()
 
     virtual_patient = dict.fromkeys(biological_model.kinetic_constants, 1.0)
 

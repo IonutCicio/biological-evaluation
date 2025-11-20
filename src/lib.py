@@ -1,8 +1,8 @@
 import argparse
-from datetime import UTC, datetime, timedelta
-import pathlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+from datetime import UTC, datetime, timedelta
+from typing import TypeVar
 
 import buckpass
 from dotenv import load_dotenv
@@ -16,7 +16,7 @@ class Arguments:
 
 def source_env() -> Arguments:
     argument_parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    _ = argument_parser.add_argument("-e", "--env", required=True)
+    _ = argument_parser.add_argument("-e", "--env")
     _ = argument_parser.add_argument("-t", "--task")
     args = argument_parser.parse_args()
 
@@ -24,7 +24,7 @@ def source_env() -> Arguments:
     _ = load_dotenv(dotenv_path=args.env)
 
     return Arguments(
-        env=args.env, task_id=buckpass.core.OpenBoxTaskId(args.task_id)
+        env=args.env, task_id=buckpass.core.OpenBoxTaskId(args.task)
     )
 
 
