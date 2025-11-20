@@ -33,10 +33,6 @@ class Cost:
 def _blackbox(
     biological_model: BiologicalModel, virtual_patient: VirtualPatient
 ) -> tuple[Trajectory, roadrunner.RoadRunner, Cost]:
-    # for k_1, k_2 in biological_model.kinetic_constants_constraints:
-    #     if virtual_patient[k_1] > virtual_patient[k_2]:
-    #         raise ViolatedKineticConstantsPartialOrderError
-
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(
         libsbml.writeSBMLToString(biological_model.sbml_document)
     )
@@ -57,7 +53,7 @@ def _blackbox(
 
     for column_number, column_name in enumerate(rr.timeCourseSelections):
         if (
-            re.match(r"^\[s_\d+\]$", column_name)
+            re.match(r"^\[s_\d+\]$", column_name)  # check if its a species
             and "k_" + column_name[1:-1] not in virtual_patient
         ):
             points_violating_normalization_constraint: int = 0
@@ -82,6 +78,9 @@ def _blackbox(
     for left, right in biological_model.physical_entities_constraints:
         pass
 
+    # for k_1, k_2 in biological_model.kinetic_constants_constraints:
+    #     if virtual_patient[k_1] > virtual_patient[k_2]:
+    #         raise ViolatedKineticConstantsPartialOrderError
     # normalization_cost: list[float] = []
     # transitory_cost: list[float] = []
 

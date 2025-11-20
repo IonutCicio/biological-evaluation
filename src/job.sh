@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -a
-source $HOME/$PROJECT_PATH/.env
+source $HOME/biological-evaluation/.env
 set +a
 
 cd $HOME/$PROJECT_PATH 

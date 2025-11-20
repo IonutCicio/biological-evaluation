@@ -596,16 +596,19 @@ class BiologicalScenarioDefinition:
         kinetic_constants_constraints: PartialOrder[SId] = set()
         for reaction_1, reaction_2 in reaction_like_events_constraints:
             for kinetic_constant_1 in kinetic_constants:
-                for kinetic_constant_2 in kinetic_constants:
-                    if (
-                        repr(reaction_1) in kinetic_constant_1
-                        and repr(reaction_2) in kinetic_constant_2
-                        and kinetic_constant_1.startswith("k_f")
-                        and kinetic_constant_2.startswith("k_f")
-                    ):
-                        kinetic_constants_constraints.add(
-                            (kinetic_constant_1, kinetic_constant_2)
-                        )
+                if repr(
+                    reaction_1
+                ) in kinetic_constant_1 and kinetic_constant_1.startswith(
+                    "k_f"
+                ):
+                    for kinetic_constant_2 in kinetic_constants:
+                        if (
+                            repr(reaction_2) in kinetic_constant_2
+                            and kinetic_constant_2.startswith("k_f")
+                        ):
+                            kinetic_constants_constraints.add(
+                                (kinetic_constant_1, kinetic_constant_2)
+                            )
 
         constraints_node: libsbml.XMLNode = libsbml.XMLNode.convertStringToXMLNode(
             f"""

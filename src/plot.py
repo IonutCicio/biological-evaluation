@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,10 +10,6 @@ TASK_ID: str = "691f04402da3c47a0b4dfd3c"
 
 def main() -> None:
     load_dotenv()
-    # print(os.getenv("NEO4J_URL_REACTOME"))
-    # print(os.getenv("VIRTUAL_MACHINE_PROJECT_PATH"))
-    # print(os.getenv("NUM_THREADS"))
-    # exit()
 
     with Path("data.json").open() as file:
         runhistory = json.loads(file.read())

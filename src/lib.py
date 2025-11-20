@@ -24,23 +24,3 @@ def source_env() -> Arguments:
         env=args.env,
         task_id=buckpass.core.OpenBoxTaskId(str(args.task).strip()),
     )
-
-
-# T = TypeVar("T")
-#
-#
-# def measure(f: Callable[[], T]) -> tuple[T, timedelta]:
-#     start = datetime.now(tz=UTC)
-#     result = f()
-#     end = datetime.now(tz=UTC)
-#
-#     return (result, end - start)
-#
-#
-# # _ = source_env()
-#
-# # def arguments(require_task_id: bool = False) -> Arguments:
-#
-# # load_dotenv
-# # env: pathlib.Path = field(default=pathlib.Path(".env"))
-# # env=pathlib.Path(args.env),

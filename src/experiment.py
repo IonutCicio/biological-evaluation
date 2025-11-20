@@ -42,7 +42,7 @@ def main() -> None:
                 adenosine_diphsphate,
             },
             constraints={(nitric_oxide, cyclic_amp)},
-            max_depth=IntGTZ(2),
+            max_depth=IntGTZ(12),
         )
     )
 
