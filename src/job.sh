@@ -1,8 +1,8 @@
 #!/bin/bash
 
 set -a
-source $HOME.env
+source $HOME/$PROJECT_PATH/.env
 set +a
 
-cd $CLUSTER_PROJECT_PATH 
+cd $HOME/$PROJECT_PATH 
 $HOME/.local/bin/uv run src/worker.py "$@"

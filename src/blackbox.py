@@ -12,6 +12,10 @@ from biological_scenarios_generation.model import (
     VirtualPatient,
 )
 
+from lib import source_env
+
+_ = source_env()
+
 Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
 
@@ -43,8 +47,7 @@ def _blackbox(
     simulation_start: int = int(os.getenv("SIMULATION_START") or 0)
     simulation_end: int = int(os.getenv("SIMULATION_END") or 10000)
     simulation_points: int = int(os.getenv("SIMULATION_POINTS") or 100000)
-    # transitory_phi: int = float(os.getenv("TRANSITORY") or 0.5)
-    transitory_phi: float = 0.75
+    transitory_phi: float = float(os.getenv("TRANSITORY") or 0.5)
 
     result: Trajectory = rr.simulate(
         start=simulation_start, end=simulation_end, points=simulation_points

@@ -1,11 +1,9 @@
-import argparse
 import builtins
 import contextlib
 import json
 import os
 import re
 from datetime import UTC, datetime
-from pathlib import Path
 
 import buckpass
 import libsbml
@@ -13,55 +11,51 @@ from biological_scenarios_generation.model import BiologicalModel
 from openbox.utils.constants import FAILED, SUCCESS
 
 from blackbox import Cost, blackbox
+from lib import measure, source_env
+
+args = source_env()
 
 OPENBOX_URL: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
-    host=os.getenv("VIRTUAL_MACHINE_ADDRESS") or "", port=8000
+    host=os.getenv("VM_HOST") or "", port=8000
 )
 
-ORCHESTRATOR_URL = f"http://{os.getenv('VIRTUAL_MACHINE_ADDRESS')}:8080/"
+ORCHESTRATOR_URL = f"http://{os.getenv('VM_HOST')}:8080/"
 
 
 def main() -> None:
-    argument_parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    _ = argument_parser.add_argument("-t", "--task", required=True)
-    _ = argument_parser.add_argument("-f", "--file", required=True)
-    args = argument_parser.parse_args()
+    filepath = os.getenv("SBML")
+    assert filepath
 
     start_time = datetime.now(tz=UTC)
 
-    model_file: str = str(args.file).strip()
-    model_path = Path(model_file)
-    assert model_path.exists()
-    assert model_path.is_file()
-
-    openbox_task_id: buckpass.core.OpenBoxTaskId = buckpass.core.OpenBoxTaskId(
-        args.task
-    ).strip()
-
-    load_model_start_time = datetime.now(tz=UTC)
-    document: libsbml.SBMLDocument = libsbml.readSBML(
-        f"{os.getenv('CLUSTER_PROJECT_PATH')}{model_file}"
-    )
-    biological_model = BiologicalModel.load(document)
-    load_model_end_time = datetime.now(tz=UTC)
-
-    suggestion_start_time = datetime.now(tz=UTC)
-    suggestion: dict[str, float] = buckpass.openbox_api.get_suggestion(
-        url=OPENBOX_URL, task_id=openbox_task_id
-    )
-    suggestion_end_time = datetime.now(tz=UTC)
-
-    blackbox_start_time = datetime.now(tz=UTC)
-    cost: Cost | None = None
-    with contextlib.suppress(builtins.BaseException):
-        cost = blackbox(
-            biological_model,
-            virtual_patient={
-                kinetic_constant: 10**value
-                for kinetic_constant, value in suggestion.items()
-            },
+    (biological_model, _timedelta_load) = measure(
+        lambda: BiologicalModel.load(
+            libsbml.readSBML(
+                f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}{filepath}"
+            )
         )
-    blackbox_end_time = datetime.now(tz=UTC)
+    )
+
+    (suggestion, _timedelta_suggestion) = measure(
+        lambda: buckpass.openbox_api.get_suggestion(
+            url=OPENBOX_URL, task_id=args.task_id
+        )
+    )
+
+    def bb() -> Cost | None:
+        with contextlib.suppress(builtins.BaseException):
+            return blackbox(
+                biological_model,
+                virtual_patient={
+                    kinetic_constant: 10**value
+                    for kinetic_constant, value in suggestion.items()
+                },
+            )
+
+        return None
+
+    (cost, _timedelta_blackbox) = measure(lambda: bb())
+
     normalization_len = (
         biological_model.sbml_document.getModel().getNumSpecies()
     ) - len(
@@ -72,41 +66,30 @@ def main() -> None:
         }
     )
 
-    observation_start_time = datetime.now(tz=UTC)
-    buckpass.openbox_api.update_observation(
-        url=OPENBOX_URL,
-        task_id=openbox_task_id,
-        config_dict=suggestion,
-        objectives=cost.normalization if cost else [1] * normalization_len,
-        constraints=[],
-        trial_info={
-            "cost": str(blackbox_end_time - blackbox_start_time),
-            "worker_id": os.getenv("SLURM_JOB_ID"),
-            "trial_info": json.dumps(
-                {
-                    "start_time": str(start_time),
-                    "load_duration": str(
-                        load_model_end_time - load_model_start_time
-                    ),
-                    "suggestion_duration": str(
-                        suggestion_end_time - suggestion_start_time
-                    ),
-                }
-            ),
-        },
-        trial_state=SUCCESS if cost else FAILED,
+    _, _timedelta_observation = measure(
+        lambda: buckpass.openbox_api.update_observation(
+            url=OPENBOX_URL,
+            task_id=args.task_id,
+            config_dict=suggestion,
+            objectives=cost.normalization if cost else [1] * normalization_len,
+            constraints=[],
+            trial_info={
+                "cost": str(_timedelta_blackbox),
+                "worker_id": os.getenv("SLURM_JOB_ID"),
+                "trial_info": json.dumps(
+                    {
+                        "start_time": str(start_time),
+                        "load_duration": str(_timedelta_load),
+                        "suggestion_duration": str(_timedelta_suggestion),
+                    }
+                ),
+            },
+            trial_state=SUCCESS if cost else FAILED,
+        )
     )
-    observation_end_time = datetime.now(tz=UTC)
-    print(observation_end_time - observation_start_time, flush=True)
 
-    # cost
-    # if cost
-    # else biological_model.sbml_document.getModel().getNumSpecies()
-    # TODO: + transitory
+    print(_timedelta_observation, flush=True)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(e, flush=True)
+    main()

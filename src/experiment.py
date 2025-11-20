@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 import libsbml
@@ -16,18 +17,17 @@ from biological_scenarios_generation.scenario import (
 from neo4j.exceptions import ServiceUnavailable
 
 from blackbox import plot
+from lib import source_env
 
-NEO4J_URL_REACTOME = "neo4j://localhost:7687"
-AUTH = ("noe4j", "neo4j")
-REACTOME_DATABASE = "graph.db"
-
-logger = logging.getLogger(__name__)
+_ = source_env()
 
 
 def main() -> None:
+    logger = logging.getLogger(__name__)
     logging.basicConfig(
         filename=f"{Path(__file__).stem}.log", level=logging.INFO
     )
+    # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     signal_transduction = Pathway(ReactomeDbId(162582))
     nitric_oxide = PhysicalEntity(ReactomeDbId(202124))
@@ -53,7 +53,12 @@ def main() -> None:
 
     try:
         with neo4j.GraphDatabase.driver(
-            uri=NEO4J_URL_REACTOME, auth=AUTH, database=REACTOME_DATABASE
+            uri=os.getenv("REACTOME_URL") or "",
+            auth=(
+                os.getenv("REACTOME_USERNAME") or "",
+                os.getenv("REACTOME_PASSWORD") or "",
+            ),
+            database=os.getenv("REACTOME_DATABASE"),
         ) as driver:
             driver.verify_connectivity()
             biological_model = (
@@ -71,15 +76,11 @@ def main() -> None:
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
 
-    virtual_patient = {
-        kinetic_constant: 1.0
-        for kinetic_constant in biological_model.kinetic_constants
-    }
+    virtual_patient = dict.fromkeys(biological_model.kinetic_constants, 1.0)
 
     try:
         cost = plot(biological_model, virtual_patient=virtual_patient)
         logger.info(cost)
-        print(cost.normalization, cost.transitory, sep="\n")
     except Exception:
         logger.exception("")
         logger.info("inf")

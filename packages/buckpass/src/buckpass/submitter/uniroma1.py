@@ -10,8 +10,8 @@ from buckpass.core.submitter import Submitter
 class Uniroma1Submitter(Submitter[OpenBoxTaskId, SlurmJobId]):
     @override
     def submit(self, args: OpenBoxTaskId) -> SlurmJobId:
-        job_name = (
-            args.replace("--task ", "").replace("--file ", "").replace(" ", "_")
+        job_name = "_".join(
+            reversed(args.replace("--task ", "").replace("--file ", "").split())
         )
 
         completed_process = subprocess.run(
@@ -19,8 +19,8 @@ class Uniroma1Submitter(Submitter[OpenBoxTaskId, SlurmJobId]):
                 "/usr/bin/ssh",
                 "-i",
                 "~/.ssh/Uniroma1Cluster",
-                f"{os.getenv('CLUSTER_USER')}@{os.getenv('FRONTEND_ADDRESS')}",
-                f'""ssh submitter \\\\"sbatch -J {job_name} {os.getenv("CLUSTER_PROJECT_PATH")}src/job.sh {args}\\\\" ""',
+                f"{os.getenv('CLUSTER_USER')}@{os.getenv('FRONTEND_HOST')}",
+                f'""ssh submitter \\\\"sbatch -J {job_name} /home/{os.getenv("CLUSTER_USER")}/{os.getenv("PROJECT_PATH")}/src/job.sh {args}\\\\" ""',
             ],
             check=False,
             capture_output=True,

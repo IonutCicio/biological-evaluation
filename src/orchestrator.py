@@ -1,12 +1,14 @@
-import argparse
 import os
 import re
-from pathlib import Path
 
 import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 from openbox import space
+
+from lib import source_env
+
+args = source_env()
 
 policy: (
     None | BurstPolicy[buckpass.core.SlurmJobId, buckpass.core.OpenBoxTaskId]
@@ -14,17 +16,12 @@ policy: (
 
 
 def main() -> None:
-    argument_parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    _ = argument_parser.add_argument("-f", "--file", required=True)
-    args = argument_parser.parse_args()
+    filepath = os.getenv("SBML")
+    assert filepath
 
-    model_file: str = str(args.file)
-    model_path = Path(model_file)
-    assert model_path.exists()
-    assert model_path.is_file()
-
-    document: libsbml.SBMLDocument = libsbml.readSBML(model_file)
-    biological_model: BiologicalModel = BiologicalModel.load(document)
+    biological_model: BiologicalModel = BiologicalModel.load(
+        libsbml.readSBML(filepath)
+    )
 
     _space: space.Space = space.Space()
     _space.add_variables(
@@ -39,8 +36,6 @@ def main() -> None:
         ]
     )
 
-    max_runs = 10000
-
     num_objectives = (
         biological_model.sbml_document.getModel().getNumSpecies()
         - len(
@@ -52,29 +47,31 @@ def main() -> None:
         )
     )
 
+    max_runs = int(os.getenv("MAX_RUNS") or 1000)
+
     task_id = buckpass.openbox_api.register_task(
         config_space=_space,
         server_ip="localhost",
         port=8000,
-        email="test@test.test",
+        email=str(os.getenv("OPENBOX_EMAIL")),
         password=str(os.getenv("OPENBOX_PASSWORD")),
-        task_name=model_file,
+        task_name=filepath,
         num_objectives=num_objectives,
         num_constraints=0,
-        advisor_type="default",
-        sample_strategy="bo",
-        surrogate_type="prf",
+        advisor_type=str(os.getenv("ADVISOR_TYPE") or "default"),
+        sample_strategy=str(os.getenv("SAMPLE_STRATEGY") or "bo"),
+        surrogate_type=str(os.getenv("SURROGATE_TYPE") or "prf"),
         acq_type="mesmo",
         parallel_type="async",
-        acq_optimizer_type="random_scipy",
+        acq_optimizer_type=str(os.getenv("SURROGATE_TYPE") or "random_scipy"),
         initial_runs=0,
         random_state=1,
-        active_worker_num=1,
+        active_worker_num=int(os.getenv("RANDOM_STATE") or 1),
         max_runs=max_runs,
     )
 
     _ = BurstPolicy(
-        args=f"--task {task_id} --file {model_file}",
+        args=f"--task {task_id} --env {args.env}",
         size=buckpass.core.IntGTZ(max_runs),
         submitter=buckpass.Uniroma1Submitter(),
     )
@@ -82,33 +79,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-# from openbox.artifact.remote_advisor import RemoteAdvisor
-
-# remote_advisor
-# - 'tpe': Tree-structured Parzen Estimator
-# - 'ea': Evolutionary Algorithms
-# - 'random': Random Search
-# - 'mcadvisor': Bayesian Optimization with Monte Carlo Sampling
-
-# remote_advisor: RemoteAdvisor = RemoteAdvisor(
-#     config_space=_space,
-#     server_ip="localhost",
-#     port=8000,
-#     email="test@test.test",
-#     password=os.getenv("OPENBOX_PASSWORD"),
-#     task_name=model_file,
-#     num_objectives=1,
-#     num_constraints=0,
-#     advisor_type="tpe",
-#     sample_strategy="bo",
-#     surrogate_type="prf",
-#     acq_type="ei",
-#     parallel_type="async",
-#     acq_optimizer_type="random_scipy",
-#     initial_runs=0,
-#     random_state=1,
-#     active_worker_num=1,
-#     max_runs=1000,
-# )
-# remote_advisor.task_id
