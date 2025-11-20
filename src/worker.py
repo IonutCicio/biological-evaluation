@@ -76,8 +76,8 @@ def main() -> None:
         url=OPENBOX_URL,
         task_id=openbox_task_id,
         config_dict=suggestion,
-        objectives=[0],
-        constraints=cost.normalization if cost else [1] * normalization_len,
+        constraints=[],
+        objectives=cost.normalization if cost else [1] * normalization_len,
         trial_info={
             "cost": str(blackbox_end_time - blackbox_start_time),
             "worker_id": os.getenv("SLURM_JOB_ID"),

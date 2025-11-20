@@ -1,7 +1,7 @@
 import argparse
 import os
-from pathlib import Path
 import re
+from pathlib import Path
 
 import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
@@ -33,7 +33,7 @@ def main() -> None:
                 name=kinetic_constant,
                 lower=-20.0,
                 upper=0.0 if kinetic_constant.startswith("k_s_") else 20.0,
-                default_value=-20.0,
+                default_value=0.0,
             )
             for kinetic_constant in biological_model.kinetic_constants
         ]
@@ -48,8 +48,7 @@ def main() -> None:
         email="test@test.test",
         password=str(os.getenv("OPENBOX_PASSWORD")),
         task_name=model_file,
-        num_objectives=1,
-        num_constraints=(
+        num_objectives=(
             # TODO: * 2
             (biological_model.sbml_document.getModel().getNumSpecies())
             - len(
@@ -60,10 +59,11 @@ def main() -> None:
                 }
             )
         ),
+        num_constraints=0,
         advisor_type="tpe",
         sample_strategy="bo",
         surrogate_type="lightgbm",
-        acq_type="eic",
+        acq_type="ei",
         parallel_type="async",
         acq_optimizer_type="random_scipy",
         initial_runs=0,
