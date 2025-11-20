@@ -1,6 +1,6 @@
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeAlias
 
 import libsbml
@@ -19,25 +19,19 @@ class ViolatedKineticConstantsPartialOrderError(Exception): ...
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class Loss:
-    pass
+class Cost:
+    normalization: list[float] = field(default_factory=list)
+    transitory: list[float] = field(default_factory=list)
+    order: list[float] = field(default_factory=list)
+    modifiers: list[float] = field(default_factory=list)
 
 
 def _blackbox(
     biological_model: BiologicalModel, virtual_patient: VirtualPatient
-) -> tuple[Trajectory, roadrunner.RoadRunner, float]:
-    for left, right in biological_model.kinetic_constants_constraints:
-        for kinetic_constant_1 in virtual_patient:
-            for kinetic_constant_2 in virtual_patient:
-                if (
-                    repr(left) in kinetic_constant_1
-                    and repr(right) in kinetic_constant_2
-                    and kinetic_constant_1.startswith("k_f_")
-                    and kinetic_constant_2.startswith("k_f_")
-                    and virtual_patient[kinetic_constant_1]
-                    > virtual_patient[kinetic_constant_2]
-                ):
-                    raise ViolatedKineticConstantsPartialOrderError
+) -> tuple[Trajectory, roadrunner.RoadRunner, Cost]:
+    # for k_1, k_2 in biological_model.kinetic_constants_constraints:
+    #     if virtual_patient[k_1] > virtual_patient[k_2]:
+    #         raise ViolatedKineticConstantsPartialOrderError
 
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(
         libsbml.writeSBMLToString(biological_model.sbml_document)
@@ -49,55 +43,75 @@ def _blackbox(
     simulation_start: int = int(os.getenv("SIMULATION_START") or 0)
     simulation_end: int = int(os.getenv("SIMULATION_END") or 10000)
     simulation_points: int = int(os.getenv("SIMULATION_POINTS") or 100000)
+    # transitory_phi: int = float(os.getenv("TRANSITORY") or 0.5)
+    transitory_phi: float = 0.75
 
     result: Trajectory = rr.simulate(
         start=simulation_start, end=simulation_end, points=simulation_points
     )
 
-    normalization_loss: float = 0.0
-    transitory_loss: float = 0.0
+    cost: Cost = Cost()
+
     for column_number, column_name in enumerate(rr.timeCourseSelections):
-        if re.match(r"^\[s_\d+\]$", column_name):
+        if (
+            re.match(r"^\[s_\d+\]$", column_name)
+            and "k_" + column_name[1:-1] not in virtual_patient
+        ):
             points_violating_normalization_constraint: int = 0
-            for concentration in result[:, column_number]:
-                if concentration < 0 or concentration > 1:
+            for species_concentration in result[:, column_number]:
+                if species_concentration < 0 or species_concentration > 1:
                     points_violating_normalization_constraint += 1
 
-            normalization_loss += float(
-                points_violating_normalization_constraint
-            ) / float(simulation_points)
+            cost.normalization.append(
+                float(points_violating_normalization_constraint)
+                / float(simulation_points)
+            )
 
         if "mean" in column_name:
-            y_1, y_2 = int((simulation_points - 1) / 2), simulation_points - 1
-            x_1, x_2 = result[y_1, column_number], result[y_2, column_number]
-            slope = (y_2 - y_1) / (x_2 - x_1) if x_1 != x_2 else 0
-            transitory_loss += abs(float(np.arctan(slope)))
+            x_1, x_2 = (
+                int((simulation_points - 1) * transitory_phi),
+                simulation_points - 1,
+            )
+            y_1, y_2 = result[x_1, column_number], result[x_2, column_number]
+            slope = (y_2 - y_1) / (x_2 - x_1)
+            cost.transitory.append(float(np.arctan(abs(slope))))
 
     for left, right in biological_model.physical_entities_constraints:
         pass
-    # + transitory_loss
-    return (result, rr, normalization_loss)
+
+    # normalization_cost: list[float] = []
+    # transitory_cost: list[float] = []
+
+    # for k_1, k_2 in biological_model.kinetic_constants_constraints:
+    #     if virtual_patient[k_1] > virtual_patient[k_2]:
+    # TODO: better or worse
+
+    # + transitory_cost
+    return (result, rr, cost)
 
 
 def blackbox(
     biological_model: BiologicalModel, virtual_patient: VirtualPatient
-) -> float:
-    (_, _, loss) = _blackbox(
+) -> Cost:
+    (_, _, cost) = _blackbox(
         biological_model=biological_model, virtual_patient=virtual_patient
     )
-    return loss
+    return cost
 
 
-def blackbox_with_plot(
+def plot(
     biological_model: BiologicalModel, virtual_patient: VirtualPatient
-) -> float:
-    (trajectory, rr, loss) = _blackbox(
+) -> Cost:
+    (trajectory, rr, cost) = _blackbox(
         biological_model=biological_model, virtual_patient=virtual_patient
     )
 
     time = trajectory[:, 0]
     for col_number, col_name in enumerate(rr.timeCourseSelections):
         # if "time" not in col_name and "mean" not in col_name:
+        if trajectory[-1, col_number] > 1:
+            print(col_name)
+
         if "mean" in col_name:
             name = col_name
             _ = pylab.plot(time, trajectory[:, col_number], label=str(name))
@@ -105,7 +119,7 @@ def blackbox_with_plot(
 
     pylab.show()
 
-    return loss
+    return cost
 
 
 # print(

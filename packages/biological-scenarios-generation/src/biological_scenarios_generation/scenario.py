@@ -431,7 +431,7 @@ class BiologicalScenarioDefinition:
         time_rule.setFormula("1")
 
         kinetic_constants = set[SId]()
-        kinetic_constants_constraints = PartialOrder[ReactomeDbId]()
+        reaction_like_events_constraints = PartialOrder[ReactomeDbId]()
         biological_network: BiologicalScenarioDefinition._BiochemicalNetwork = (
             self.__reachable_biochemical_network(driver)
         )
@@ -493,6 +493,7 @@ class BiologicalScenarioDefinition:
                             libsbml.parseFormula(stable_constant.getId())
                         )
                         sbml_model.addRule(rule)
+                        species.setConstant(True)
                     elif (
                         obj.id in biological_network.input_physical_entities
                         or obj.id in biological_network.output_physical_entities
@@ -533,7 +534,7 @@ class BiologicalScenarioDefinition:
                             )
                         else:
                             e_reaction.setId(f"r_out_{obj}")
-                            e_kinetic_constant.setId(f"k_f_out_{obj}")
+                            e_kinetic_constant.setId(f"k_r_out_{obj}")
                             e_kinetic_law.setMath(
                                 libsbml.parseL3Formula(
                                     f"({e_kinetic_constant.getId()} * {obj})"
@@ -585,18 +586,32 @@ class BiologicalScenarioDefinition:
                     for modifier, metadata in obj.modifiers():
                         for modifier_reaction_id in metadata.produced_by:
                             if modifier_reaction_id != obj.id:
-                                kinetic_constants_constraints.add(
+                                reaction_like_events_constraints.add(
                                     (modifier_reaction_id, obj.id)
                                 )
-                            kinetic_constants_constraints.add(
+                            reaction_like_events_constraints.add(
                                 (modifier.id, obj.id)
                             )
+
+        kinetic_constants_constraints: PartialOrder[SId] = set()
+        for reaction_1, reaction_2 in reaction_like_events_constraints:
+            for kinetic_constant_1 in kinetic_constants:
+                for kinetic_constant_2 in kinetic_constants:
+                    if (
+                        repr(reaction_1) in kinetic_constant_1
+                        and repr(reaction_2) in kinetic_constant_2
+                        and kinetic_constant_1.startswith("k_f")
+                        and kinetic_constant_2.startswith("k_f")
+                    ):
+                        kinetic_constants_constraints.add(
+                            (kinetic_constant_1, kinetic_constant_2)
+                        )
 
         constraints_node: libsbml.XMLNode = libsbml.XMLNode.convertStringToXMLNode(
             f"""
             <p>
                 {{
-                    "kinetic_constants_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in kinetic_constants_constraints)}],
+                    "kinetic_constants_constraints": [{", ".join(f"[{left}, {right}]" for (left, right) in kinetic_constants_constraints)}],
                     "physical_entities_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in self.constraints)}]
                 }}
             </p>

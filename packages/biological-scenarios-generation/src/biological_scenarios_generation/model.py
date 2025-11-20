@@ -1,7 +1,7 @@
 import json
 import random
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import libsbml
 
@@ -20,21 +20,20 @@ VirtualPatient: TypeAlias = dict[SId, float]
 class BiologicalModel:
     sbml_document: libsbml.SBMLDocument
     kinetic_constants: set[SId]
-    kinetic_constants_constraints: PartialOrder[ReactomeDbId]
+    kinetic_constants_constraints: PartialOrder[SId]
     physical_entities_constraints: PartialOrder[PhysicalEntity]
 
     @staticmethod
     def load(document: libsbml.SBMLDocument) -> "BiologicalModel":
-        constraints: dict[str, list[tuple[ReactomeDbId, ReactomeDbId]]] = (
-            json.loads(
-                libsbml.XMLNode.convertXMLNodeToString(
-                    document.getModel()
-                    .getAnnotation()
-                    .getChild(0)
-                    .getChild(0)
-                    .getChild(0)
-                ).replace("&quot;", '"')
-            )
+        # tuple[ReactomeDbId, ReactomeDbId]
+        constraints: dict[str, list[Any]] = json.loads(
+            libsbml.XMLNode.convertXMLNodeToString(
+                document.getModel()
+                .getAnnotation()
+                .getChild(0)
+                .getChild(0)
+                .getChild(0)
+            ).replace("&quot;", '"')
         )
 
         return BiologicalModel(

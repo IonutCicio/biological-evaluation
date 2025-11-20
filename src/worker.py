@@ -4,13 +4,14 @@ import contextlib
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 
 import buckpass
 import libsbml
 from biological_scenarios_generation.model import BiologicalModel
 from openbox.utils.constants import FAILED, SUCCESS
 
-from blackbox import blackbox
+from blackbox import Cost, blackbox
 
 OPENBOX_URL: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
     host=os.getenv("VIRTUAL_MACHINE_ADDRESS") or "", port=8000
@@ -50,9 +51,9 @@ def main() -> None:
     suggestion_end_time = datetime.now(tz=UTC)
 
     blackbox_start_time = datetime.now(tz=UTC)
-    loss: float | None = None
+    cost: Cost | None = None
     with contextlib.suppress(builtins.BaseException):
-        loss = blackbox(
+        cost = blackbox(
             biological_model,
             virtual_patient={
                 kinetic_constant: 10**value
@@ -60,18 +61,23 @@ def main() -> None:
             },
         )
     blackbox_end_time = datetime.now(tz=UTC)
+    normalization_len = (
+        biological_model.sbml_document.getModel().getNumSpecies()
+    ) - len(
+        {
+            kinetic_constant
+            for kinetic_constant in biological_model.kinetic_constants
+            if re.match(r"k_s_\d+", kinetic_constant)
+        }
+    )
 
     observation_start_time = datetime.now(tz=UTC)
     buckpass.openbox_api.update_observation(
         url=OPENBOX_URL,
         task_id=openbox_task_id,
         config_dict=suggestion,
-        objectives=[
-            loss
-            if loss
-            else biological_model.sbml_document.getModel().getNumSpecies()
-        ],
-        constraints=[],
+        objectives=[0],
+        constraints=cost.normalization if cost else [1] * normalization_len,
         trial_info={
             "cost": str(blackbox_end_time - blackbox_start_time),
             "worker_id": os.getenv("SLURM_JOB_ID"),
@@ -83,10 +89,15 @@ def main() -> None:
             }}
         """,
         },
-        trial_state=SUCCESS if loss else FAILED,
+        trial_state=SUCCESS if cost else FAILED,
     )
     observation_end_time = datetime.now(tz=UTC)
     print(observation_end_time - observation_start_time, flush=True)
+
+    # cost
+    # if cost
+    # else biological_model.sbml_document.getModel().getNumSpecies()
+    # TODO: + transitory
 
 
 if __name__ == "__main__":
