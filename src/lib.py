@@ -1,8 +1,5 @@
 import argparse
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-from typing import TypeVar
 
 import buckpass
 from dotenv import load_dotenv
@@ -29,21 +26,21 @@ def source_env() -> Arguments:
     )
 
 
-T = TypeVar("T")
-
-
-def measure(f: Callable[[], T]) -> tuple[T, timedelta]:
-    start = datetime.now(tz=UTC)
-    result = f()
-    end = datetime.now(tz=UTC)
-
-    return (result, end - start)
-
-
-# _ = source_env()
-
-# def arguments(require_task_id: bool = False) -> Arguments:
-
-# load_dotenv
-# env: pathlib.Path = field(default=pathlib.Path(".env"))
-# env=pathlib.Path(args.env),
+# T = TypeVar("T")
+#
+#
+# def measure(f: Callable[[], T]) -> tuple[T, timedelta]:
+#     start = datetime.now(tz=UTC)
+#     result = f()
+#     end = datetime.now(tz=UTC)
+#
+#     return (result, end - start)
+#
+#
+# # _ = source_env()
+#
+# # def arguments(require_task_id: bool = False) -> Arguments:
+#
+# # load_dotenv
+# # env: pathlib.Path = field(default=pathlib.Path(".env"))
+# # env=pathlib.Path(args.env),
