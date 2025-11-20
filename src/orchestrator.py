@@ -45,7 +45,7 @@ def main() -> None:
                 if re.match(r"k_s_\d+", kinetic_constant)
             }
         )
-    )
+    ) * 2
 
     max_runs = int(os.getenv("MAX_RUNS") or 1000)
 

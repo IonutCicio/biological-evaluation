@@ -52,7 +52,7 @@ def law_of_mass_action(
         )
         half_saturation_constant.setId(f"k_h_{modifier_id}_{reaction}")
         half_saturation_constant.setConstant(True)
-        half_saturation_constant.setValue(0.5)
+        half_saturation_constant.setValue(0.0)
         kinetic_constants.add(half_saturation_constant.getId())
 
         hill_function: str = ""
@@ -458,20 +458,6 @@ class BiologicalScenarioDefinition:
                     species.setHasOnlySubstanceUnits(False)
                     species.setInitialConcentration(0.0)
 
-                    species_mean: libsbml.Parameter = (
-                        sbml_model.createParameter()
-                    )
-                    species_mean.setId(f"mean_{obj}")
-                    species_mean.setConstant(False)
-                    species_mean.setValue(0.0)
-                    species_mean_rule: libsbml.RateRule = (
-                        sbml_model.createRateRule()
-                    )
-                    species_mean_rule.setVariable(species_mean.getId())
-                    species_mean_rule.setFormula(
-                        f"({species.getId()} - {species_mean.getId()}) / (time_ + 10e-6)"
-                    )
-
                     if (
                         obj.id in biological_network.input_physical_entities
                         and obj.id
@@ -494,7 +480,23 @@ class BiologicalScenarioDefinition:
                         )
                         sbml_model.addRule(rule)
                         species.setConstant(True)
-                    elif (
+                        continue
+
+                    species_mean: libsbml.Parameter = (
+                        sbml_model.createParameter()
+                    )
+                    species_mean.setId(f"mean_{obj}")
+                    species_mean.setConstant(False)
+                    species_mean.setValue(0.0)
+                    species_mean_rule: libsbml.RateRule = (
+                        sbml_model.createRateRule()
+                    )
+                    species_mean_rule.setVariable(species_mean.getId())
+                    species_mean_rule.setFormula(
+                        f"({species.getId()} - {species_mean.getId()}) / (time_ + 10e-6)"
+                    )
+
+                    if (
                         obj.id in biological_network.input_physical_entities
                         or obj.id in biological_network.output_physical_entities
                     ):

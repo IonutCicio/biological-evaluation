@@ -72,7 +72,9 @@ def main() -> None:
         url=OPENBOX_URL,
         task_id=args.task_id,
         config_dict=suggestion,
-        objectives=cost.normalization if cost else [1] * normalization_len,
+        objectives=cost.normalization + cost.transitory
+        if cost
+        else [1] * normalization_len * 2,
         constraints=[],
         trial_info={
             "cost": str(_timedelta_blackbox),

@@ -42,7 +42,7 @@ def main() -> None:
                 adenosine_diphsphate,
             },
             constraints={(nitric_oxide, cyclic_amp)},
-            max_depth=IntGTZ(12),
+            max_depth=IntGTZ(2),
         )
     )
 
@@ -74,13 +74,11 @@ def main() -> None:
         document: libsbml.SBMLDocument = libsbml.readSBML(model_filename)
         biological_model: BiologicalModel = BiologicalModel.load(document)
 
-    exit()
-
-    virtual_patient = dict.fromkeys(biological_model.kinetic_constants, 1.0)
-
     try:
-        cost = plot(biological_model, virtual_patient=virtual_patient)
-        logger.info(cost)
+        cost = plot(biological_model, virtual_patient=biological_model())
+        logger.info(cost.normalization)
+        logger.info(cost.transitory)
+        logger.info(cost.modifiers)
     except Exception:
         logger.exception("")
         logger.info("inf")
