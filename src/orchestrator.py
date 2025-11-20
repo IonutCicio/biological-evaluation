@@ -63,7 +63,9 @@ def main() -> None:
         surrogate_type=str(os.getenv("SURROGATE_TYPE") or "prf"),
         acq_type=str(os.getenv("ACQ_TYPE") or "mesmo"),
         parallel_type="async",
-        acq_optimizer_type=str(os.getenv("SURROGATE_TYPE") or "random_scipy"),
+        acq_optimizer_type=str(
+            os.getenv("ACQ_OPTIMIZER_TYPE") or "random_scipy"
+        ),
         initial_runs=0,
         random_state=1,
         active_worker_num=int(os.getenv("RANDOM_STATE") or 1),
