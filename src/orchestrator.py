@@ -61,7 +61,7 @@ def main() -> None:
         advisor_type=str(os.getenv("ADVISOR_TYPE") or "default"),
         sample_strategy=str(os.getenv("SAMPLE_STRATEGY") or "bo"),
         surrogate_type=str(os.getenv("SURROGATE_TYPE") or "prf"),
-        acq_type="mesmo",
+        acq_type=str(os.getenv("ACQ_TYPE") or "mesmo"),
         parallel_type="async",
         acq_optimizer_type=str(os.getenv("SURROGATE_TYPE") or "random_scipy"),
         initial_runs=0,
