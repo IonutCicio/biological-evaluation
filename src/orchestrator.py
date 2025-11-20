@@ -64,7 +64,7 @@ def main() -> None:
         advisor_type="default",
         sample_strategy="bo",
         surrogate_type="prf",
-        acq_type="ehvi",
+        acq_type="mesmo",
         parallel_type="async",
         acq_optimizer_type="random_scipy",
         initial_runs=0,

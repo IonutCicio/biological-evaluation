@@ -84,11 +84,13 @@ def main() -> None:
             "worker_id": os.getenv("SLURM_JOB_ID"),
             "trial_info": json.dumps(
                 {
-                    "start_time": start_time,
-                    "load_duration": load_model_end_time
-                    - load_model_start_time,
-                    "suggestion_duration": suggestion_end_time
-                    - suggestion_start_time,
+                    "start_time": str(start_time),
+                    "load_duration": str(
+                        load_model_end_time - load_model_start_time
+                    ),
+                    "suggestion_duration": str(
+                        suggestion_end_time - suggestion_start_time
+                    ),
                 }
             ),
         },
