@@ -1,6 +1,7 @@
 import argparse
 import builtins
 import contextlib
+import json
 import os
 import re
 from datetime import UTC, datetime
@@ -81,13 +82,15 @@ def main() -> None:
         trial_info={
             "cost": str(blackbox_end_time - blackbox_start_time),
             "worker_id": os.getenv("SLURM_JOB_ID"),
-            "trial_info": f"""
-            {{
-                "start_time": {start_time},
-                "load_duration": {load_model_end_time - load_model_start_time},
-                "suggestion_duration": {suggestion_end_time - suggestion_start_time}
-            }}
-        """,
+            "trial_info": json.dumps(
+                {
+                    "start_time": start_time,
+                    "load_duration": load_model_end_time
+                    - load_model_start_time,
+                    "suggestion_duration": suggestion_end_time
+                    - suggestion_start_time,
+                }
+            ),
         },
         trial_state=SUCCESS if cost else FAILED,
     )
