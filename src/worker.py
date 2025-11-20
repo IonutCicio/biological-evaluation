@@ -31,7 +31,7 @@ def main() -> None:
     start = datetime.now(tz=UTC)
     biological_model = BiologicalModel.load(
         libsbml.readSBML(
-            f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}{filepath}"
+            f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}/{filepath}"
         )
     )
     end = datetime.now(tz=UTC)
