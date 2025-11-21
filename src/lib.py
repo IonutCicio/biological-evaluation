@@ -5,8 +5,8 @@ import sys
 from dataclasses import dataclass, field
 from logging import Logger
 
-from biological_scenarios_generation.core import IntGTZ
 import buckpass
+from biological_scenarios_generation.core import IntGTZ
 from biological_scenarios_generation.model import BiologicalModel
 from dotenv import load_dotenv
 from openbox import space
@@ -49,14 +49,14 @@ def init() -> tuple[Option, Logger]:
     _ = load_dotenv()
     if args.env:
         for dotenv_path in args.env:
-            _ = load_dotenv(dotenv_path=dotenv_path)
+            _ = load_dotenv(dotenv_path=dotenv_path.strip())
 
     logger = logging.getLogger(__name__)
     logging.basicConfig(stream=args.log, level=logging.INFO)
 
     return (
         Option(
-            env=args.env or [],
+            env=list(map(str.strip, args.env)) or [],
             task_id=buckpass.core.OpenBoxTaskId((args.task_id or "").strip()),
         ),
         logger,
