@@ -130,13 +130,17 @@ SIMULATION_FAIL_COST: float = 2.0
 
 def objective_function(
     biological_model: BiologicalModel, num_objectives: IntGTZ
-) -> Callable[[VirtualPatient], list[float]]:
-    def _objective_function(virtual_patient: VirtualPatient) -> list[float]:
+) -> Callable[[VirtualPatient], dict[str, list[float]]]:
+    def _objective_function(
+        virtual_patient: VirtualPatient,
+    ) -> dict[str, list[float]]:
         try:
             cost = blackbox(biological_model, virtual_patient)
-            return cost.normalization + cost.transitory
+            objectives = cost.normalization + cost.transitory
         except:
-            return [SIMULATION_FAIL_COST] * num_objectives
+            objectives = [SIMULATION_FAIL_COST] * num_objectives
+
+        return {"objectives": objectives}
 
     return _objective_function
 
