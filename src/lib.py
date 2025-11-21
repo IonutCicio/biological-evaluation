@@ -1,26 +1,60 @@
 import argparse
+import logging
+import sys
 from dataclasses import dataclass, field
+from logging import Logger
+from pathlib import Path
 
 import buckpass
 from dotenv import load_dotenv
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class Arguments:
-    env: str = field(default="")
+class Option:
+    env: list[Path]
     task_id: buckpass.core.OpenBoxTaskId = field(default="")
 
 
-def source_env() -> Arguments:
+def init() -> tuple[Option, Logger]:
     argument_parser: argparse.ArgumentParser = argparse.ArgumentParser()
-    _ = argument_parser.add_argument("-e", "--env")
-    _ = argument_parser.add_argument("-t", "--task")
+    _ = argument_parser.add_argument(
+        "-e",
+        "--env",
+        dest="env",
+        nargs="*",
+        # default=".env",
+        # type=Path,
+        help=".env files to load before runing the script",
+        metavar=None,
+    )
+    _ = argument_parser.add_argument("-t", "--task", dest="task_id")
+    _ = argument_parser.add_argument(
+        "-l",
+        "--log",
+        dest="log",
+        nargs=None,
+        default=sys.stdout,
+        type=argparse.FileType("w"),
+        help="log file",
+        metavar="logfile",
+    )
     args = argument_parser.parse_args()
 
-    _ = load_dotenv()
-    _ = load_dotenv(dotenv_path=str(args.env).strip())
+    assert isinstance(args.env, list | None)
+    assert isinstance(args.task_id, str | None)
 
-    return Arguments(
-        env=args.env,
-        task_id=buckpass.core.OpenBoxTaskId(str(args.task).strip()),
+    _ = load_dotenv()
+    if args.env:
+        for dotenv_path in args.env:
+            _ = load_dotenv(dotenv_path=dotenv_path)
+
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(stream=args.log, level=logging.INFO)
+
+    return (
+        Option(
+            env=args.env or [],
+            task_id=buckpass.core.OpenBoxTaskId((args.task_id or "").strip()),
+        ),
+        logger,
     )

@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TypeAlias
 
@@ -7,14 +8,45 @@ import libsbml
 import numpy as np
 import pylab
 import roadrunner
+from biological_scenarios_generation.core import IntGTZ
 from biological_scenarios_generation.model import (
     BiologicalModel,
     VirtualPatient,
 )
+from openbox import space
 
-from lib import source_env
+from lib import init
 
-_ = source_env()
+_ = init()
+
+
+def config(biological_model: BiologicalModel) -> tuple[space.Space, IntGTZ]:
+    _space: space.Space = space.Space()
+    _space.add_variables(
+        [
+            space.Real(
+                name=kinetic_constant,
+                lower=-20.0,
+                upper=0.0 if kinetic_constant.startswith("k_s_") else 20.0,
+                default_value=0.0,
+            )
+            for kinetic_constant in biological_model.kinetic_constants
+        ]
+    )
+
+    num_objectives = (
+        biological_model.sbml_document.getModel().getNumSpecies()
+        - len(
+            {
+                kinetic_constant
+                for kinetic_constant in biological_model.kinetic_constants
+                if re.match(r"k_s_\d+", kinetic_constant)
+            }
+        )
+    ) * 2
+
+    return _space, num_objectives
+
 
 Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
@@ -33,6 +65,13 @@ class Cost:
 def _blackbox(
     biological_model: BiologicalModel, virtual_patient: VirtualPatient
 ) -> tuple[Trajectory, roadrunner.RoadRunner, Cost]:
+    simulation_start: int = int(os.getenv("SIMULATION_START", default="0"))
+    simulation_end: int = int(os.getenv("SIMULATION_END", default="10000"))
+    simulation_points: int = int(
+        os.getenv("SIMULATION_POINTS", default="100000")
+    )
+    transitory: float = float(os.getenv("TRANSITORY", default="0.5"))
+
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(
         libsbml.writeSBMLToString(biological_model.sbml_document)
     )
@@ -40,18 +79,13 @@ def _blackbox(
     for k, value in virtual_patient.items():
         rr[k] = value
 
-    simulation_start: int = int(os.getenv("SIMULATION_START") or 0)
-    simulation_end: int = int(os.getenv("SIMULATION_END") or 10000)
-    simulation_points: int = int(os.getenv("SIMULATION_POINTS") or 100000)
-    transitory: float = float(os.getenv("TRANSITORY") or 0.5)
-
     result: Trajectory = rr.simulate(
         start=simulation_start, end=simulation_end, points=simulation_points
     )
 
-    cost: Cost = Cost()
-
     is_species_re: re.Pattern[str] = re.compile(r"^\[s_\d+\]$")
+
+    cost: Cost = Cost()
 
     for column_number, column_name in enumerate(rr.timeCourseSelections):
         if (
@@ -78,8 +112,8 @@ def _blackbox(
                 float(np.arctan(abs((y_2 - y_1) / float(x_2 - x_1))))
             )
 
-    for s_1, s_2 in biological_model.physical_entities_constraints:
-        pass
+    # for s_1, s_2 in biological_model.physical_entities_constraints:
+    #     pass
 
     for k_1, k_2 in biological_model.kinetic_constants_constraints:
         cost.modifiers.append(
@@ -89,6 +123,22 @@ def _blackbox(
         )
 
     return (result, rr, cost)
+
+
+SIMULATION_FAIL_COST: float = 2.0
+
+
+def objective_function(
+    biological_model: BiologicalModel, num_objectives: IntGTZ
+) -> Callable[[VirtualPatient], list[float]]:
+    def _objective_function(virtual_patient: VirtualPatient) -> list[float]:
+        try:
+            cost = blackbox(biological_model, virtual_patient)
+            return cost.normalization + cost.transitory
+        except:
+            return [SIMULATION_FAIL_COST] * num_objectives
+
+    return _objective_function
 
 
 def blackbox(
@@ -117,3 +167,33 @@ def plot(
     pylab.show()
 
     return cost
+
+
+# ORCHESTRATOR_URL: str = f"http://{os.getenv('VM_HOST')}:8080/"
+
+# transfer_learning_history=[],
+# advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
+# surrogate_type="gp",
+# task_id="parallel_async",
+# task_id = buckpass.openbox_api.register_task(
+#     config_space=_space,
+#     server_ip="localhost",
+#     port=8000,
+#     email=str(os.getenv("OPENBOX_EMAIL")),
+#     password=str(os.getenv("OPENBOX_PASSWORD")),
+#     task_name=filepath,
+#     num_objectives=int(num_objectives),
+#     num_constraints=0,
+#     advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
+#     sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
+#     surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
+#     acq_type=os.getenv("ACQ_TYPE", default="mesmo"),
+#     acq_optimizer_type=os.getenv(
+#         "ACQ_OPTIMIZER_TYPE", default="random_scipy"
+#     ),
+#     parallel_type="async",
+#     initial_runs=0,
+#     random_state=1,
+#     active_worker_num=int(os.getenv("RANDOM_STATE", default="1")),
+#     max_runs=max_runs,
+# )

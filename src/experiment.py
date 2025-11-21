@@ -18,15 +18,12 @@ from biological_scenarios_generation.scenario import (
 from neo4j.exceptions import ServiceUnavailable
 
 from blackbox import plot
-from lib import source_env
+from lib import init
 
-_ = source_env()
+_, logger = init()
 
 
 def main() -> None:
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
     signal_transduction = Pathway(ReactomeDbId(162582))
     nitric_oxide = PhysicalEntity(ReactomeDbId(202124))
     cyclic_amp = PhysicalEntity(ReactomeDbId(30389))
@@ -42,7 +39,7 @@ def main() -> None:
                 adenosine_diphsphate,
             },
             constraints={(nitric_oxide, cyclic_amp)},
-            max_depth=IntGTZ(2),
+            max_depth=IntGTZ(4),
         )
     )
 
@@ -85,4 +82,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("")

@@ -11,7 +11,7 @@ class Uniroma1Submitter(Submitter[OpenBoxTaskId, SlurmJobId]):
     @override
     def submit(self, args: OpenBoxTaskId) -> SlurmJobId:
         job_name = "_".join(
-            reversed(args.replace("--task ", "").replace("--file ", "").split())
+            reversed(args.replace("-t ", "").replace("-e ", "").split())
         )
 
         completed_process = subprocess.run(

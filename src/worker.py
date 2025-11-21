@@ -1,99 +1,84 @@
-import builtins
-import contextlib
 import json
 import os
-import re
 from datetime import UTC, datetime
+from time import perf_counter
 
 import buckpass
 import libsbml
-from biological_scenarios_generation.model import BiologicalModel
+from biological_scenarios_generation.model import (
+    BiologicalModel,
+    VirtualPatient,
+)
 from openbox.utils.constants import FAILED, SUCCESS
 
-from blackbox import Cost, blackbox
-from lib import source_env
+from blackbox import SIMULATION_FAIL_COST, config, objective_function
+from lib import init
 
-args = source_env()
-
-OPENBOX_URL: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
-    host=os.getenv("VM_HOST") or "", port=8000
-)
-
-ORCHESTRATOR_URL = f"http://{os.getenv('VM_HOST')}:8080/"
+option, logger = init()
 
 
 def main() -> None:
-    filepath = os.getenv("SBML")
+    filepath: str | None = os.getenv("SBML")
     assert filepath
+    job_start_time = datetime.now(tz=UTC)
 
-    start_time = datetime.now(tz=UTC)
+    # Load model
 
-    start = datetime.now(tz=UTC)
+    start_time = perf_counter()
     biological_model = BiologicalModel.load(
         libsbml.readSBML(
             f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}/{filepath}"
         )
     )
-    end = datetime.now(tz=UTC)
-    _timedelta_load = end - start
+    _, num_objectives = config(biological_model)
+    _timedelta_load = perf_counter() - start_time
 
-    start = datetime.now(tz=UTC)
-    suggestion: dict[str, float] = buckpass.openbox_api.get_suggestion(
-        url=OPENBOX_URL, task_id=args.task_id
+    # Ask suggestion
+
+    start_time = perf_counter()
+    openbox_url: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
+        host=os.getenv("VM_HOST", default=""), port=8000
     )
-    end = datetime.now(tz=UTC)
-    _timedelta_suggestion = end - start
-
-    cost: Cost | None = None
-    start = datetime.now(tz=UTC)
-    with contextlib.suppress(builtins.BaseException):
-        cost = blackbox(
-            biological_model,
-            virtual_patient={
-                kinetic_constant: 10**value
-                for kinetic_constant, value in suggestion.items()
-            },
-        )
-    end = datetime.now(tz=UTC)
-    _timedelta_blackbox = end - start
-
-    normalization_len = (
-        biological_model.sbml_document.getModel().getNumSpecies()
-    ) - len(
-        {
-            kinetic_constant
-            for kinetic_constant in biological_model.kinetic_constants
-            if re.match(r"k_s_\d+", kinetic_constant)
-        }
+    suggestion: VirtualPatient = buckpass.openbox_api.get_suggestion(  # pyright: ignore[reportAny]
+        url=openbox_url, task_id=option.task_id
     )
+    _timedelta_suggestion = perf_counter() - start_time
 
-    start = datetime.now(tz=UTC)
+    # Compute objective function value
+
+    start_time = perf_counter()
+    _objective_function = objective_function(biological_model, num_objectives)
+    objectives = _objective_function(suggestion)
+    _timedelta_blackbox = perf_counter() - start_time
+
+    start_time = perf_counter()
     buckpass.openbox_api.update_observation(
-        url=OPENBOX_URL,
-        task_id=args.task_id,
+        url=openbox_url,
+        task_id=option.task_id,
         config_dict=suggestion,
-        objectives=cost.normalization + cost.transitory
-        if cost
-        else [1] * normalization_len * 2,
+        objectives=objectives,
         constraints=[],
         trial_info={
             "cost": str(_timedelta_blackbox),
             "worker_id": os.getenv("SLURM_JOB_ID"),
             "trial_info": json.dumps(
                 {
-                    "start_time": str(start_time),
+                    "start_time": str(job_start_time),
                     "load_duration": str(_timedelta_load),
                     "suggestion_duration": str(_timedelta_suggestion),
                 }
             ),
         },
-        trial_state=SUCCESS if cost else FAILED,
+        trial_state=FAILED
+        if objectives[0] == SIMULATION_FAIL_COST
+        else SUCCESS,
     )
-    end = datetime.now(tz=UTC)
-    _timedelta_observation = end - start
-
-    print(_timedelta_observation, flush=True)
+    _timedelta_observation = perf_counter() - start_time
+    logger.info(_timedelta_observation)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        logger.exception("")
