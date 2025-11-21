@@ -4,8 +4,7 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 
-from blackbox import config
-from lib import init
+from lib import config, init
 
 option, logger = init()
 

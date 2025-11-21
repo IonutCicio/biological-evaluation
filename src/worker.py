@@ -11,8 +11,8 @@ from biological_scenarios_generation.model import (
 )
 from openbox.utils.constants import FAILED, SUCCESS
 
-from blackbox import SIMULATION_FAIL_COST, config, objective_function
-from lib import init
+from blackbox import SIMULATION_FAIL_COST, objective_function
+from lib import config, init
 
 option, logger = init()
 
@@ -48,7 +48,7 @@ def main() -> None:
 
     start_time = perf_counter()
     _objective_function = objective_function(biological_model, num_objectives)
-    objectives = _objective_function(suggestion)
+    result = _objective_function(suggestion)
     _timedelta_blackbox = perf_counter() - start_time
 
     start_time = perf_counter()
@@ -56,7 +56,7 @@ def main() -> None:
         url=openbox_url,
         task_id=option.task_id,
         config_dict=suggestion,
-        objectives=objectives,
+        objectives=result["objectives"],
         constraints=[],
         trial_info={
             "cost": str(_timedelta_blackbox),
@@ -70,7 +70,7 @@ def main() -> None:
             ),
         },
         trial_state=FAILED
-        if objectives[0] == SIMULATION_FAIL_COST
+        if result["objectives"][0] == SIMULATION_FAIL_COST
         else SUCCESS,
     )
     _timedelta_observation = perf_counter() - start_time
