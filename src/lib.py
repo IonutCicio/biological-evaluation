@@ -3,7 +3,6 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from logging import Logger
-from pathlib import Path
 
 import buckpass
 from dotenv import load_dotenv
@@ -11,7 +10,7 @@ from dotenv import load_dotenv
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class Option:
-    env: list[Path]
+    env: list[str]
     task_id: buckpass.core.OpenBoxTaskId = field(default="")
 
 

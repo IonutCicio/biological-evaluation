@@ -27,7 +27,7 @@ def main() -> None:
         port=8000,
         email=str(os.getenv("OPENBOX_EMAIL")),
         password=str(os.getenv("OPENBOX_PASSWORD")),
-        task_name=filepath,
+        task_name=f"{filepath}_{'_'.join(option.env)}",
         num_objectives=int(num_objectives),
         num_constraints=0,
         advisor_type=os.getenv("ADVISOR_TYPE", default="default"),

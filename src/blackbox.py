@@ -112,8 +112,19 @@ def _blackbox(
                 float(np.arctan(abs((y_2 - y_1) / float(x_2 - x_1))))
             )
 
-    # for s_1, s_2 in biological_model.physical_entities_constraints:
-    #     pass
+    for s_1, s_2 in biological_model.physical_entities_constraints:
+        cost.order.append(
+            float(
+                np.log(
+                    max(
+                        result[-1, rr.timeCourseSelections.index(f"[{s_1}]")]
+                        - result[-1, rr.timeCourseSelections.index(f"[{s_2}]")],
+                        0,
+                    )
+                    + 1
+                )
+            )
+        )
 
     for k_1, k_2 in biological_model.kinetic_constants_constraints:
         cost.modifiers.append(
@@ -134,6 +145,7 @@ def objective_function(
     def _objective_function(
         virtual_patient: VirtualPatient,
     ) -> dict[str, list[float]]:
+        objectives: list[float]
         try:
             cost = blackbox(biological_model, virtual_patient)
             objectives = cost.normalization + cost.transitory

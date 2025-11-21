@@ -1,0 +1,61 @@
+import os
+
+import libsbml
+from biological_scenarios_generation.model import (
+    BiologicalModel,
+    VirtualPatient,
+)
+from openbox import Advisor, Observation, ParallelOptimizer
+
+from blackbox import config, objective_function
+from lib import init
+
+_, logger = init()
+
+
+def main() -> None:
+    filepath = os.getenv("SBML")
+    assert filepath
+
+    biological_model: BiologicalModel = BiologicalModel.load(
+        libsbml.readSBML(filepath)
+    )
+    _space, num_objectives = config(biological_model)
+    _objective_function = objective_function(biological_model, num_objectives)
+
+    max_runs = int(os.getenv("MAX_RUNS", default="1000"))
+    advisor = Advisor(
+        config_space=_space,
+        num_objectives=num_objectives,
+        num_constraints=0,
+        parallel_strategy="async",
+        batch_size=8,
+        batch_strategy="default",
+        sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
+        max_runs=int(os.getenv("MAX_RUNS", default="1000")),
+        surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
+        acq_type=os.getenv("ACQ_TYPE", default="mesmo"),
+        acq_optimizer_type=os.getenv(
+            "ACQ_OPTIMIZER_TYPE", default="random_scipy"
+        ),
+        initial_runs=0,
+        logging_dir=f"{os.getenv('HOME')}/logs",
+        random_state=1,  # TODO: env variable for random_state
+    )
+
+    for _ in range(max_runs):
+        virtual_patient: VirtualPatient = advisor.get_suggestion()
+        result = _objective_function(virtual_patient)
+        observation = Observation(
+            config=virtual_patient, objectives=result["objectives"]
+        )
+        logger.info(config)
+        logger.info(result)
+        advisor.update_observation(observation)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        logger.exception("")
