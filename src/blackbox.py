@@ -41,11 +41,13 @@ def _blackbox(
     simulation_points: int = int(
         os.getenv("SIMULATION_POINTS", default="100000")
     )
-    transitory: float = float(os.getenv("TRANSITORY", default="0.5"))
+    transitory: float = float(os.getenv("TRANSITORY", default="0.75"))
 
     rr: roadrunner.RoadRunner = roadrunner.RoadRunner(
         libsbml.writeSBMLToString(biological_model.sbml_document)
     )
+
+    # rr.setIntegrator("rk45")
 
     for k, value in virtual_patient.items():
         rr[k] = value

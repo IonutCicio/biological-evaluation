@@ -56,7 +56,7 @@ def init() -> tuple[Option, Logger]:
 
     return (
         Option(
-            env=list(map(str.strip, args.env)) or [],
+            env=list(map(str.strip, args.env)) if args.env else [],
             task_id=buckpass.core.OpenBoxTaskId((args.task_id or "").strip()),
         ),
         logger,
