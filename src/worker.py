@@ -20,7 +20,7 @@ option, logger = init()
 def main() -> None:
     filepath: str | None = os.getenv("SBML")
     assert filepath
-    job_start_time = datetime.now(tz=UTC)
+    worker_start_time = datetime.now(tz=UTC)
 
     # Load model
 
@@ -63,7 +63,7 @@ def main() -> None:
             "worker_id": os.getenv("SLURM_JOB_ID"),
             "trial_info": json.dumps(
                 {
-                    "start_time": str(job_start_time),
+                    "start_time": str(worker_start_time),
                     "load_duration": str(_timedelta_load),
                     "suggestion_duration": str(_timedelta_suggestion),
                 }

@@ -9,12 +9,17 @@ _ = init()
 
 
 def main() -> None:
-    # load_dotenv()
-
     tasks: list[str] = [
-        "691f32922da3c47a0b4e031c",
-        "691f04402da3c47a0b4dfd3c",
-        "691ed6ed967b65f7163edb6d",
+        "692074b32da3c47a0b4e07c8",
+        "692075f42da3c47a0b4e0a40",
+        "692076942da3c47a0b4e0b7c",
+        "692077352da3c47a0b4e0cbc",
+        "692077d52da3c47a0b4e0df5",
+        "692078772da3c47a0b4e0f28",
+        "692079182da3c47a0b4e105c",
+        "692079b82da3c47a0b4e11b0",
+        "69207a582da3c47a0b4e12ff",
+        "69207af82da3c47a0b4e143a",
     ]
 
     with Path("data.json").open() as file:
@@ -48,7 +53,7 @@ def main() -> None:
 
         _ = pylab.plot(non_optimal_x, non_optimal_y, "o", color="gray")
         _ = pylab.plot(optimal_x, optimal_y, "o-")
-        _ = pylab.savefig(f"{task_id}.svg")
+        _ = pylab.savefig(f"docs/{task_id}.svg")
         _ = pylab.show()
 
 

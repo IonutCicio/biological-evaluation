@@ -2,6 +2,7 @@ import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import reduce
+import json
 from operator import attrgetter
 from typing import Any, LiteralString, TypeAlias
 
@@ -11,10 +12,10 @@ import neo4j
 from biological_scenarios_generation.core import IntGTZ, PartialOrder
 from biological_scenarios_generation.model import BiologicalModel, SId
 from biological_scenarios_generation.reactome import (
-    Category,
+    EntityCategory,
     Compartment,
     MathML,
-    Metadata,
+    EntityMetadata,
     ModifierCategory,
     ModifierMetadata,
     Pathway,
@@ -32,7 +33,7 @@ def law_of_mass_action(
     kinetic_constants = set[SId]()
 
     def repr_stoichiometry(
-        physical_entity_metadata: tuple[PhysicalEntity, Metadata],
+        physical_entity_metadata: tuple[PhysicalEntity, EntityMetadata],
     ) -> str:
         (physical_entity, metadata) = physical_entity_metadata
         return f"({physical_entity}^{metadata.stoichiometry})"
@@ -42,7 +43,7 @@ def law_of_mass_action(
     forward_kinetic_constant.setValue(0.0)
     forward_kinetic_constant.setConstant(True)
     kinetic_constants.add(forward_kinetic_constant.getId())
-    formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.species(Category.INPUT)))})"
+    formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.species(EntityCategory.INPUT)))})"
 
     formula_hill_component: str = ""
     modifiers_functions: list[str] = []
@@ -340,19 +341,19 @@ class BiologicalScenarioDefinition:
         )
 
         input_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, itertools.chain(records[0][network__inputs]))
+            map(ReactomeDbId, records[0][network__inputs])
         )
 
         output_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, itertools.chain(records[0][network_outputs]))
+            map(ReactomeDbId, records[0][network_outputs])
         )
 
         def get_metadata(obj: dict[str, Any]) -> PhysicalEntityMetadata:
             match obj["category"]:
                 case "input" | "output":
-                    return Metadata(
+                    return EntityMetadata(
                         stoichiometry=Stoichiometry(int(obj["stoichiometry"])),
-                        category=Category(obj["category"]),
+                        category=EntityCategory(obj["category"]),
                     )
                 case _:
                     return ModifierMetadata(
@@ -451,7 +452,7 @@ class BiologicalScenarioDefinition:
                 case PhysicalEntity():
                     species: libsbml.Species = sbml_model.createSpecies()
                     species.setId(f"{obj}")
-                    species.setCompartment("default_compartment")
+                    species.setCompartment(default_compartment.getId())
                     species.setConstant(False)
                     species.setSubstanceUnits("mole")
                     species.setBoundaryCondition(False)
@@ -493,7 +494,7 @@ class BiologicalScenarioDefinition:
                     )
                     species_mean_rule.setVariable(species_mean.getId())
                     species_mean_rule.setFormula(
-                        f"({species.getId()} - {species_mean.getId()}) / (time_ + 10e-6)"
+                        f"({species.getId()} - {species_mean.getId()}) / ({time.getId()} + 10e-6)"
                     )
 
                     if (
@@ -555,9 +556,9 @@ class BiologicalScenarioDefinition:
                     for physical_entity, metadata in obj.species():
                         species_ref: libsbml.SpeciesReference
                         match metadata.category:
-                            case Category.INPUT:
+                            case EntityCategory.INPUT:
                                 species_ref = reaction.createReactant()
-                            case Category.OUTPUT:
+                            case EntityCategory.OUTPUT:
                                 species_ref = reaction.createProduct()
 
                         species_ref.setSpecies(repr(physical_entity))
@@ -595,7 +596,7 @@ class BiologicalScenarioDefinition:
                                 (modifier.id, obj.id)
                             )
 
-        kinetic_constants_constraints: PartialOrder[SId] = set()
+        kinetic_constants_order: PartialOrder[SId] = set()
         for reaction_1, reaction_2 in reaction_like_events_constraints:
             for kinetic_constant_1 in kinetic_constants:
                 if repr(
@@ -608,30 +609,40 @@ class BiologicalScenarioDefinition:
                             repr(reaction_2) in kinetic_constant_2
                             and kinetic_constant_2.startswith("k_f")
                         ):
-                            kinetic_constants_constraints.add(
+                            kinetic_constants_order.add(
                                 (kinetic_constant_1, kinetic_constant_2)
                             )
 
-        constraints_node: libsbml.XMLNode = libsbml.XMLNode.convertStringToXMLNode(
-            f"""
-            <p>
-                {{
-                    "kinetic_constants_constraints": [{", ".join(f"[{left}, {right}]" for (left, right) in kinetic_constants_constraints)}],
-                    "physical_entities_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in self.constraints)}]
-                }}
-            </p>
-            """
+        sbml_model.setAnnotation(
+            json.dumps(
+                {
+                    "kinetic_constants_order": list(
+                        map(list, kinetic_constants_order)
+                    ),
+                    "species_order": list(map(list, self.constraints)),
+                }
+            )
         )
-
-        rdf: libsbml.XMLNode = libsbml.RDFAnnotationParser.createRDFAnnotation()
-        _ = rdf.addChild(constraints_node)
-        node: libsbml.XMLNode = libsbml.RDFAnnotationParser.createAnnotation()
-        _ = node.addChild(rdf)
-        sbml_model.setAnnotation(node)
 
         return BiologicalModel(
             sbml_document=sbml_document,
             kinetic_constants=kinetic_constants,
-            physical_entities_constraints=self.constraints,
-            kinetic_constants_constraints=kinetic_constants_constraints,
+            species_order=self.constraints,
+            kinetic_constants_order=kinetic_constants_order,
         )
+
+
+# constraints_node: libsbml.XMLNode = (
+#     libsbml.XMLNode.convertStringToXMLNode()
+# )
+#
+# rdf: libsbml.XMLNode = libsbml.RDFAnnotationParser.createRDFAnnotation()
+# _ = rdf.addChild(constraints_node)
+# node: libsbml.XMLNode = libsbml.RDFAnnotationParser.createAnnotation()
+# _ = node.addChild(rdf)
+# f"""
+#     {{
+#         "kinetic_constants_constraints": [{", ".join(f"[{left}, {right}]" for (left, right) in kinetic_constants_constraints)}],
+#         "physical_entities_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in self.constraints)}]
+#     }}
+# """

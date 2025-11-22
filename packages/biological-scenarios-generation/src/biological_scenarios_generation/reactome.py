@@ -87,14 +87,14 @@ class PhysicalEntity(DatabaseObject):
         return f"s_{super().__repr__()}"
 
 
-class Category(StrEnum):
+class EntityCategory(StrEnum):
     INPUT = auto()
     OUTPUT = auto()
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
-class Metadata:
-    category: Category
+class EntityMetadata:
+    category: EntityCategory
     stoichiometry: Stoichiometry
 
 
@@ -110,7 +110,7 @@ class ModifierMetadata:
     produced_by: set[ReactomeDbId]
 
 
-PhysicalEntityMetadata: TypeAlias = Metadata | ModifierMetadata
+PhysicalEntityMetadata: TypeAlias = EntityMetadata | ModifierMetadata
 
 
 class Event(DatabaseObject):
@@ -149,11 +149,11 @@ class ReactionLikeEvent(Event):
         }
 
     def species(
-        self, cateogry: Category | None = None
-    ) -> set[tuple[PhysicalEntity, Metadata]]:
+        self, cateogry: EntityCategory | None = None
+    ) -> set[tuple[PhysicalEntity, EntityMetadata]]:
         return {
             (physical_entity, metadata)
             for physical_entity, metadata in self.physical_entities.items()
-            if isinstance(metadata, Metadata)
+            if isinstance(metadata, EntityMetadata)
             and (cateogry is None or metadata.category == cateogry)
         }
