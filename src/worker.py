@@ -48,7 +48,12 @@ def main() -> None:
 
     start_time = perf_counter()
     _objective_function = objective_function(biological_model, num_objectives)
-    result = _objective_function(suggestion)
+    result = _objective_function(
+        {
+            kinetic_constant: 10**value
+            for kinetic_constant, value in suggestion.items()
+        }
+    )
     _timedelta_blackbox = perf_counter() - start_time
 
     start_time = perf_counter()
