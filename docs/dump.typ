@@ -111,3 +111,158 @@
 // - parameters for the speeds of the reactions
 // - constraints on the quantities of the species _(for which the model needs to be
 //     simulated)_
+//
+```python
+# half_saturation_constant.setId(f"k_h_{modifier_id}_{reaction}")
+# half_saturation_constant.setConstant(True)
+# half_saturation_constant.setValue(0.0)
+# kinetic_constants.add(half_saturation_constant.getId())
+
+# kinetic_constants = set[SId]()
+
+# forward_kinetic_constant.setId(f"k_f_{reaction}")
+# forward_kinetic_constant.setValue(0.0)
+# forward_kinetic_constant.setConstant(True)
+# kinetic_constants.add(forward_kinetic_constant.getId())
+
+# TODO: set the species (HUMAN) of the entities! Otherwise you look for other stuff
+
+# network=physical_entities | reaction_like_events | compartments,
+# tuple[ReactomeDbId, ReactomeDbId]
+# print(ConstantTypology("reaction_speed"))
+# print(ConstantTypology("ciao"))
+
+# for parameter in document.getModel().getListOfParameters():
+#     print(parameter)
+#     print(
+#         parameter.getAnnotationString()
+#         .replace("<annotation>", "")
+#         .replace("</annotation>", "")
+#     )
+
+# reachable
+# biochemical
+# network
+# biological
+# model
+
+# kinetic_constants=
+#
+# {
+#     parameter.getId(): Constant(
+#         parameter.getAnnotationString()
+#         .replace("<annotation>", "")
+#         .replace("</annotation>", "")
+#     )
+#     for parameter in document.getModel().getListOfParameters()
+#     if parameter.getId().startswith("k_")
+# },
+# species_order={
+#     (PhysicalEntity(species_1), PhysicalEntity(species_2))
+#     for species_1, species_2 in orders["species_order"]
+# },
+# kinetic_constants_order={
+#     (kinetic_constant_1, kinetic_constant_2)
+#     for kinetic_constant_1, kinetic_constant_2 in orders[
+#         "kinetic_constants_order"
+#     ]
+# },
+
+# libsbml.XMLNode.convertXMLNodeToString(
+#     document.getModel()
+#     .getAnnotation()
+#     .getChild(0)
+#     .getChild(0)
+#     .getChild(0)
+# ).replace("&quot;", '"')
+
+# p: libsbml.Parameter = document.getModel().createParameter()
+# node = document.create
+# p.setNotes("ciao")
+# p.setAnnotation("hola soy dora")
+# print(p.getNotes())
+# print(
+#     p.getAnnotationString()
+#     .replace("<annotation>", "")
+#     .replace("</annotation>", "")
+# )
+# exit()
+# -20, 0.0 if kinetic_constant.startswith("k_s_") else 20.0
+
+# kinetic_constants = kinetic_constants | reaction_kinetic_constants
+# for obj in reachable_biochemical_network.network:
+# match obj:
+#     case Compartment():
+
+# case PhysicalEntity():
+# case ReactionLikeEvent():
+
+# list(
+#     map(lambda x: list(map(int, x)), self.constraints)
+# ),
+
+
+# constraints_node: libsbml.XMLNode = (
+#     libsbml.XMLNode.convertStringToXMLNode()
+# )
+#
+# rdf: libsbml.XMLNode = libsbml.RDFAnnotationParser.createRDFAnnotation()
+# _ = rdf.addChild(constraints_node)
+# node: libsbml.XMLNode = libsbml.RDFAnnotationParser.createAnnotation()
+# _ = node.addChild(rdf)
+# f"""
+#     {{
+#         "kinetic_constants_constraints": [{", ".join(f"[{left}, {right}]" for (left, right) in kinetic_constants_constraints)}],
+#         "physical_entities_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in self.constraints)}]
+#     }}
+# """
+
+
+# rr.setIntegrator("rk45")
+
+# is_species_re: re.Pattern[str] = re.compile(r"^\[s_\d+\]$")
+# is_species_re.match(column_name)
+# and "k_" + column_name[1:-1] not in virtual_patient
+# in biological_model.other_parameters
+
+
+# ORCHESTRATOR_URL: str = f"http://{os.getenv('VM_HOST')}:8080/"
+
+# transfer_learning_history=[],
+# advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
+# surrogate_type="gp",
+# task_id="parallel_async",
+# task_id = buckpass.openbox_api.register_task(
+#     config_space=_space,
+#     server_ip="localhost",
+#     port=8000,
+#     email=str(os.getenv("OPENBOX_EMAIL")),
+#     password=str(os.getenv("OPENBOX_PASSWORD")),
+#     task_name=filepath,
+#     num_objectives=int(num_objectives),
+#     num_constraints=0,
+#     advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
+#     sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
+#     surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
+#     acq_type=os.getenv("ACQ_TYPE", default="mesmo"),
+#     acq_optimizer_type=os.getenv(
+#         "ACQ_OPTIMIZER_TYPE", default="random_scipy"
+#     ),
+#     parallel_type="async",
+#     initial_runs=0,
+#     random_state=1,
+#     active_worker_num=int(os.getenv("RANDOM_STATE", default="1")),
+#     max_runs=max_runs,
+# )
+
+# num_objectives = (
+#     biological_model.sbml_document.getModel().getNumSpecies()
+#     - len(
+#         {
+#             kinetic_constant
+#             for kinetic_constant in biological_model.kinetic_constants
+#             if re.match(r"k_s_\d+", kinetic_constant)
+#         }
+#     )
+# ) * 2
+```

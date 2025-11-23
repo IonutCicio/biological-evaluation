@@ -5,10 +5,10 @@ from biological_scenarios_generation.model import (
     BiologicalModel,
     VirtualPatient,
 )
-from openbox import Advisor, Observation, ParallelOptimizer
+from openbox import Advisor, Observation
 
-from blackbox import config, objective_function
-from lib import init
+from blackbox import objective_function
+from lib import init, openbox_config
 
 _, logger = init()
 
@@ -20,7 +20,7 @@ def main() -> None:
     biological_model: BiologicalModel = BiologicalModel.load(
         libsbml.readSBML(filepath)
     )
-    _space, num_objectives = config(biological_model)
+    _space, num_objectives = openbox_config(biological_model)
     _objective_function = objective_function(biological_model, num_objectives)
 
     max_runs = int(os.getenv("MAX_RUNS", default="1000"))
@@ -46,10 +46,10 @@ def main() -> None:
     for _ in range(max_runs):
         virtual_patient: VirtualPatient = advisor.get_suggestion()
         result = _objective_function(virtual_patient)
-        observation = Observation(
+        observation: Observation = Observation(
             config=virtual_patient, objectives=result["objectives"]
         )
-        logger.info(config)
+        logger.info(openbox_config)
         logger.info(result)
         advisor.update_observation(observation)
 

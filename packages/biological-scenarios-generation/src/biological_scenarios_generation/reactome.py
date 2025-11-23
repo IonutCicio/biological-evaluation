@@ -28,7 +28,9 @@ class ReactomeDbId(IntGEZ):
         In the "Reactome Pathway Browser" objects are identified with their full
         StableIdVersion, from which the corresponding ReactomeDbId can be found
         """
-        match = re.search("R-[A-Z]{3}-([0-9]{1,8})([.][0-9]{1,3})?$", st_id)
+        match: re.Match[str] | None = re.search(
+            "R-[A-Z]{3}-([0-9]{1,8})([.][0-9]{1,3})?$", st_id
+        )
         assert match
         return ReactomeDbId(int(match.group()))
 
@@ -67,7 +69,7 @@ class CatalystActivity(DatabaseObject):
 class Compartment(DatabaseObject):
     @override
     def __repr__(self) -> str:
-        return f"c_{super().__repr__()}"
+        return f"compartment_{super().__repr__()}"
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -84,7 +86,7 @@ class PhysicalEntity(DatabaseObject):
 
     @override
     def __repr__(self) -> str:
-        return f"s_{super().__repr__()}"
+        return f"species_{super().__repr__()}"
 
 
 class EntityCategory(StrEnum):
@@ -136,7 +138,7 @@ class ReactionLikeEvent(Event):
 
     @override
     def __repr__(self) -> str:
-        return f"r_{super().__repr__()}"
+        return f"reaction_{super().__repr__()}"
 
     def modifiers(
         self, category: ModifierCategory | None = None

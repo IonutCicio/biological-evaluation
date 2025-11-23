@@ -8,7 +8,7 @@ from biological_scenarios_generation.model import (
 from openbox import ParallelOptimizer
 
 import blackbox
-from lib import init
+from lib import init, openbox_config
 
 _, logger = init()
 
@@ -19,7 +19,7 @@ assert filepath
 biological_model: BiologicalModel = BiologicalModel.load(
     libsbml.readSBML(filepath)
 )
-_space, num_objectives = blackbox.config(biological_model)
+_space, num_objectives = openbox_config(biological_model)
 
 
 def _objective_function(
@@ -28,7 +28,7 @@ def _objective_function(
     biological_model: BiologicalModel = BiologicalModel.load(
         libsbml.readSBML(filepath)
     )
-    _space, num_objectives = blackbox.config(biological_model)
+    _space, num_objectives = openbox_config(biological_model)
     objectives: list[float] = []
     try:
         cost = blackbox.blackbox(biological_model, virtual_patient)

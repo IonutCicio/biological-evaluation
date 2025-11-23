@@ -12,7 +12,7 @@ from biological_scenarios_generation.model import (
 from openbox.utils.constants import FAILED, SUCCESS
 
 from blackbox import SIMULATION_FAIL_COST, objective_function
-from lib import config, init
+from lib import init, openbox_config
 
 option, logger = init()
 
@@ -30,7 +30,7 @@ def main() -> None:
             f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}/{filepath}"
         )
     )
-    _, num_objectives = config(biological_model)
+    _, num_objectives = openbox_config(biological_model)
     _timedelta_load = perf_counter() - start_time
 
     # Ask suggestion

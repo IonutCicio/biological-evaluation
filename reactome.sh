@@ -140,4 +140,3 @@ if $submit_batch_job; then
 
     sbatch -J "reactome_$basename" --partition multicore --mem 196608 temp.job "${sbatch_args[@]}"
 fi
-

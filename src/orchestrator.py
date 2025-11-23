@@ -4,7 +4,7 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 
-from lib import config, init
+from lib import init, openbox_config
 
 option, logger = init()
 
@@ -14,10 +14,10 @@ def main() -> None:
     assert filepath
 
     biological_model: BiologicalModel = BiologicalModel.load(
-        document=libsbml.readSBML(filepath)
+        sbml_document=libsbml.readSBML(filepath)
     )
 
-    _space, num_objectives = config(biological_model)
+    _space, num_objectives = openbox_config(biological_model)
     max_runs: int = int(os.getenv("MAX_RUNS", default="1000"))
 
     task_id = buckpass.openbox_api.register_task(

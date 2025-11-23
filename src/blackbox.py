@@ -1,5 +1,6 @@
+import math
 import os
-import re
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TypeAlias
@@ -47,8 +48,6 @@ def _blackbox(
         libsbml.writeSBMLToString(biological_model.sbml_document)
     )
 
-    # rr.setIntegrator("rk45")
-
     for k, value in virtual_patient.items():
         rr[k] = value
 
@@ -56,15 +55,11 @@ def _blackbox(
         start=simulation_start, end=simulation_end, points=simulation_points
     )
 
-    is_species_re: re.Pattern[str] = re.compile(r"^\[s_\d+\]$")
-
     cost: Cost = Cost()
 
     for column_number, column_name in enumerate(rr.timeCourseSelections):
-        if (
-            is_species_re.match(column_name)
-            and "k_" + column_name[1:-1] not in virtual_patient
-        ):
+        _column_name = column_name.removeprefix("[").removesuffix("]")
+        if f"mean_{_column_name}" in biological_model.other_parameters:
             points_violating_normalization_constraint: int = 0
             for species_concentration in result[:, column_number]:
                 if species_concentration < 0 or species_concentration > 1:
@@ -75,7 +70,7 @@ def _blackbox(
                 / float(simulation_points)
             )
 
-        if "mean_s_" in column_name:
+        if "mean_" in column_name:
             x_1: int = int((simulation_points - 1) * transitory)
             x_2: int = simulation_points - 1
             y_1: float = result[x_1, column_number]
@@ -85,31 +80,27 @@ def _blackbox(
                 float(np.arctan(abs((y_2 - y_1) / float(x_2 - x_1))))
             )
 
-    for s_1, s_2 in biological_model.physical_entities_constraints:
-        cost.order.append(
-            float(
-                np.log(
-                    max(
-                        result[-1, rr.timeCourseSelections.index(f"[{s_1}]")]
-                        - result[-1, rr.timeCourseSelections.index(f"[{s_2}]")],
-                        0,
-                    )
-                    + 1
-                )
-            )
+    for species_1, species_2 in biological_model.species_order:
+        diff: float = (
+            result[-1, rr.timeCourseSelections.index(f"[{species_1}]")]
+            - result[-1, rr.timeCourseSelections.index(f"[{species_2}]")]
         )
+        cost.order.append(float(math.log(max(diff, 0) + 1)))
 
-    for k_1, k_2 in biological_model.kinetic_constants_constraints:
-        cost.modifiers.append(
-            float(
-                np.log(max(virtual_patient[k_1] - virtual_patient[k_2], 0) + 1)
-            )
+    for (
+        kinetic_constant_1,
+        kinetic_constant_2,
+    ) in biological_model.kinetic_constants_order:
+        diff: float = (
+            virtual_patient[kinetic_constant_1]
+            - virtual_patient[kinetic_constant_2]
         )
+        cost.modifiers.append(float(math.log(max(diff, 0) + 1)))
 
     return (result, rr, cost)
 
 
-SIMULATION_FAIL_COST: float = 2.0
+SIMULATION_FAIL_COST: float = sys.float_info.max
 
 
 def objective_function(
@@ -156,33 +147,3 @@ def plot(
     pylab.show()
 
     return cost
-
-
-# ORCHESTRATOR_URL: str = f"http://{os.getenv('VM_HOST')}:8080/"
-
-# transfer_learning_history=[],
-# advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
-# surrogate_type="gp",
-# task_id="parallel_async",
-# task_id = buckpass.openbox_api.register_task(
-#     config_space=_space,
-#     server_ip="localhost",
-#     port=8000,
-#     email=str(os.getenv("OPENBOX_EMAIL")),
-#     password=str(os.getenv("OPENBOX_PASSWORD")),
-#     task_name=filepath,
-#     num_objectives=int(num_objectives),
-#     num_constraints=0,
-#     advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
-#     sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
-#     surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
-#     acq_type=os.getenv("ACQ_TYPE", default="mesmo"),
-#     acq_optimizer_type=os.getenv(
-#         "ACQ_OPTIMIZER_TYPE", default="random_scipy"
-#     ),
-#     parallel_type="async",
-#     initial_runs=0,
-#     random_state=1,
-#     active_worker_num=int(os.getenv("RANDOM_STATE", default="1")),
-#     max_runs=max_runs,
-# )

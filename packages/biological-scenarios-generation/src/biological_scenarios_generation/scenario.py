@@ -1,8 +1,7 @@
-import itertools
+import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import reduce
-import json
 from operator import attrgetter
 from typing import Any, LiteralString, TypeAlias
 
@@ -10,12 +9,18 @@ import libsbml
 import neo4j
 
 from biological_scenarios_generation.core import IntGTZ, PartialOrder
-from biological_scenarios_generation.model import BiologicalModel, SId
+from biological_scenarios_generation.model import (
+    BiologicalModel,
+    ConstantCategory,
+    OtherParameterCategory,
+    SId,
+)
 from biological_scenarios_generation.reactome import (
-    EntityCategory,
     Compartment,
-    MathML,
+    DatabaseObject,
+    EntityCategory,
     EntityMetadata,
+    MathML,
     ModifierCategory,
     ModifierMetadata,
     Pathway,
@@ -27,11 +32,36 @@ from biological_scenarios_generation.reactome import (
 )
 
 
-def law_of_mass_action(
-    sbml_model: libsbml.Model, reaction: ReactionLikeEvent
-) -> tuple[MathML, set[SId]]:
-    kinetic_constants = set[SId]()
+def _set_parameter_category(
+    sbml_parameter: libsbml.Parameter,
+    parameter_category: ConstantCategory,
+    obj: DatabaseObject,
+    extra: str = "",
+) -> tuple[SId, ConstantCategory]:
+    sbml_parameter.setAnnotation(str(parameter_category))
+    sbml_parameter.setValue(0.0)
+    sbml_parameter.setConstant(True)
 
+    match parameter_category:
+        case ConstantCategory.REACTION_SPEED:
+            sbml_parameter.setId(f"k_{obj}")
+        case ConstantCategory.PRODUCTION_SPEED:
+            sbml_parameter.setId(f"k_production_reaction_{obj}")
+        case ConstantCategory.CONSUMPTION_SPEED:
+            sbml_parameter.setId(f"k_consumption_reaction_{obj}")
+        case ConstantCategory.SPECIES_CONCENTRATION:
+            sbml_parameter.setId(f"k_{obj}")
+        case ConstantCategory.HALF_SATURATION:
+            sbml_parameter.setId(f"k_half_saturation_{extra}_{obj}")
+
+    return (sbml_parameter.getId(), parameter_category)
+
+
+def law_of_mass_action(
+    sbml_model: libsbml.Model,
+    reaction_like_event: ReactionLikeEvent,
+    kinetic_constants: dict[SId, ConstantCategory],
+) -> MathML:
     def repr_stoichiometry(
         physical_entity_metadata: tuple[PhysicalEntity, EntityMetadata],
     ) -> str:
@@ -39,22 +69,29 @@ def law_of_mass_action(
         return f"({physical_entity}^{metadata.stoichiometry})"
 
     forward_kinetic_constant: libsbml.Parameter = sbml_model.createParameter()
-    forward_kinetic_constant.setId(f"k_f_{reaction}")
-    forward_kinetic_constant.setValue(0.0)
-    forward_kinetic_constant.setConstant(True)
-    kinetic_constants.add(forward_kinetic_constant.getId())
-    formula_forward_reaction = f"({forward_kinetic_constant.getId()} * {'*'.join(map(repr_stoichiometry, reaction.species(EntityCategory.INPUT)))})"
+    (_id, category) = _set_parameter_category(
+        sbml_parameter=forward_kinetic_constant,
+        parameter_category=ConstantCategory.REACTION_SPEED,
+        obj=reaction_like_event,
+    )
+    kinetic_constants[_id] = category
+    formula_forward_reaction = f"({_id} * {'*'.join(map(repr_stoichiometry, reaction_like_event.species(EntityCategory.INPUT)))})"
 
     formula_hill_component: str = ""
     modifiers_functions: list[str] = []
-    for modifier_id, (modifier, metadata) in enumerate(reaction.modifiers()):
+    for modifier_id, (modifier, metadata) in enumerate(
+        reaction_like_event.modifiers()
+    ):
         half_saturation_constant: libsbml.Parameter = (
             sbml_model.createParameter()
         )
-        half_saturation_constant.setId(f"k_h_{modifier_id}_{reaction}")
-        half_saturation_constant.setConstant(True)
-        half_saturation_constant.setValue(0.0)
-        kinetic_constants.add(half_saturation_constant.getId())
+        (_id, category) = _set_parameter_category(
+            sbml_parameter=half_saturation_constant,
+            parameter_category=ConstantCategory.HALF_SATURATION,
+            obj=reaction_like_event,
+            extra=str(modifier_id),
+        )
+        kinetic_constants[_id] = category
 
         hill_function: str = ""
         match metadata.category:
@@ -67,14 +104,11 @@ def law_of_mass_action(
     if modifiers_functions:
         formula_hill_component = f"* ({'*'.join(modifiers_functions)})"
 
-    return (
-        f"({formula_forward_reaction}) {formula_hill_component}",
-        kinetic_constants,
-    )
+    return f"({formula_forward_reaction}) {formula_hill_component}"
 
 
 KineticLaw: TypeAlias = Callable[
-    [libsbml.Model, ReactionLikeEvent], tuple[MathML, set[SId]]
+    [libsbml.Model, ReactionLikeEvent, dict[SId, ConstantCategory]], MathML
 ]
 
 
@@ -95,14 +129,21 @@ class BiologicalScenarioDefinition:
 
     @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
     class _BiochemicalNetwork:
-        input_physical_entities: set[ReactomeDbId]
-        output_physical_entities: set[ReactomeDbId]
-        network: set[PhysicalEntity | ReactionLikeEvent | Compartment]
+        interface__inputs: set[ReactomeDbId]
+        interface_outputs: set[ReactomeDbId]
+        physical_entities: set[PhysicalEntity]
+        reaction_like_events: set[ReactionLikeEvent]
+        compartments: set[Compartment]
 
         def __post_init__(self) -> None:
-            assert self.network
+            assert len(
+                self.physical_entities
+                | self.reaction_like_events
+                | self.compartments
+            ) == len(self.physical_entities) + len(
+                self.reaction_like_events
+            ) + len(self.compartments)
 
-    # TODO: set the species of the entities! Otherwise you look for other stuff
     def __reachable_biochemical_network(
         self, neo4j_driver: neo4j.Driver
     ) -> _BiochemicalNetwork:
@@ -252,13 +293,13 @@ class BiologicalScenarioDefinition:
                 {reachable_reactions}
             """
 
-        def query_frontier(
+        def query_interface(
             reachable_physical_entities: LiteralString,
             reachable_reactions: LiteralString,
             network__inputs: LiteralString,
             network_outputs: LiteralString,
         ) -> LiteralString:
-            def __query_frontier(
+            def __query_interface(
                 rel: LiteralString, collection: LiteralString
             ) -> LiteralString:
                 return f"""
@@ -276,17 +317,15 @@ class BiologicalScenarioDefinition:
                 """
 
             return f"""
-            {__query_frontier("output", network__inputs)}
-            {__query_frontier("input", network_outputs)}
+            {__query_interface("output", network__inputs)}
+            {__query_interface("input", network_outputs)}
             """
 
-        reachable_reactions_attributes: LiteralString = (
-            "reachableReactionLikeEventAttributes"
-        )
-        network__inputs: LiteralString = "networkInputs"
-        network_outputs: LiteralString = "networkOutputs"
-
-        def query() -> LiteralString:
+        def query(
+            reachable_reactions_attributes: LiteralString,
+            network__inputs: LiteralString,
+            network_outputs: LiteralString,
+        ) -> LiteralString:
             reaction: LiteralString = "reachableReactionLikeEvent"
             reaction_attributes: LiteralString = "reactionLikeEventAttributes"
             reachable_reactions: LiteralString = "reachableReactionLikeEvents"
@@ -316,7 +355,7 @@ class BiologicalScenarioDefinition:
                     apoc.coll.flatten(COLLECT({physical_entity}.dbId))
                 ) AS {reachable_physical_entities}
             {
-                query_frontier(
+                query_interface(
                     reachable_physical_entities,
                     reachable_reactions,
                     network__inputs,
@@ -329,9 +368,16 @@ class BiologicalScenarioDefinition:
                 {network_outputs}
             """
 
+        reachable_reactions_attributes: LiteralString = (
+            "reachableReactionLikeEventAttributes"
+        )
+        network__inputs: LiteralString = "networkInputs"
+        network_outputs: LiteralString = "networkOutputs"
         records: list[neo4j.Record]
         records, _, _ = neo4j_driver.execute_query(
-            query(),
+            query(
+                reachable_reactions_attributes, network__inputs, network_outputs
+            ),
             scenario_pathways=list(map(int, self.pathways)),
             scenario_physical_entities=list(map(int, self.physical_entities)),
             excluded_physical_entities=list(
@@ -340,12 +386,14 @@ class BiologicalScenarioDefinition:
             max_depth=int(self.max_depth) if self.max_depth else -1,
         )
 
-        input_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, records[0][network__inputs])
+        result_record = records[0]
+
+        interface__inputs = set[ReactomeDbId](
+            map(ReactomeDbId, result_record[network__inputs])
         )
 
-        output_physical_entities = set[ReactomeDbId](
-            map(ReactomeDbId, records[0][network_outputs])
+        interface_outputs = set[ReactomeDbId](
+            map(ReactomeDbId, result_record[network_outputs])
         )
 
         def get_metadata(obj: dict[str, Any]) -> PhysicalEntityMetadata:
@@ -361,7 +409,9 @@ class BiologicalScenarioDefinition:
                         category=ModifierCategory(obj["category"]),
                     )
 
-        rows: list[dict[str, Any]] = records[0][reachable_reactions_attributes]
+        rows: list[dict[str, Any]] = result_record[
+            reachable_reactions_attributes
+        ]
         reaction_like_events: set[ReactionLikeEvent] = {
             ReactionLikeEvent(
                 id=ReactomeDbId(reaction["dbId"]),
@@ -397,9 +447,11 @@ class BiologicalScenarioDefinition:
         )
 
         return BiologicalScenarioDefinition._BiochemicalNetwork(
-            input_physical_entities=input_physical_entities,
-            output_physical_entities=output_physical_entities,
-            network=physical_entities | reaction_like_events | compartments,
+            interface__inputs=interface__inputs,
+            interface_outputs=interface_outputs,
+            physical_entities=physical_entities,
+            reaction_like_events=reaction_like_events,
+            compartments=compartments,
         )
 
     def generate_biological_model(
@@ -413,6 +465,25 @@ class BiologicalScenarioDefinition:
         sbml_model.setExtentUnits("mole")
         sbml_model.setSubstanceUnits("mole")
 
+        time: libsbml.Parameter = sbml_model.createParameter()
+        time.setId("time_")
+        time.setConstant(False)
+        time.setValue(0.0)
+        time.setAnnotation(str(OtherParameterCategory.TIME))
+
+        time_rate_rule: libsbml.RateRule = sbml_model.createRateRule()
+        time_rate_rule.setVariable("time_")
+        time_rate_rule.setFormula("1")
+
+        kinetic_constants: dict[SId, ConstantCategory] = {}
+        other_parameters: dict[SId, OtherParameterCategory] = {
+            time.getId(): OtherParameterCategory.TIME
+        }
+        reaction_like_events_order = PartialOrder[ReactomeDbId]()
+        reachable_biochemical_network: BiologicalScenarioDefinition._BiochemicalNetwork = self.__reachable_biochemical_network(
+            driver
+        )
+
         default_compartment: libsbml.Compartment = (
             sbml_model.createCompartment()
         )
@@ -422,192 +493,178 @@ class BiologicalScenarioDefinition:
         default_compartment.setSpatialDimensions(3)
         default_compartment.setUnits("litre")
 
-        time: libsbml.Parameter = sbml_model.createParameter()
-        time.setId("time_")
-        time.setConstant(False)
-        time.setValue(0.0)
+        for obj in reachable_biochemical_network.compartments:
+            sbml_compartment: libsbml.Compartment = (
+                sbml_model.createCompartment()
+            )
+            sbml_compartment.setId(f"{obj}")
+            sbml_compartment.setConstant(True)
+            sbml_compartment.setSize(1e-9)
+            sbml_compartment.setSpatialDimensions(3)
+            sbml_compartment.setUnits("litre")
 
-        time_rule: libsbml.RateRule = sbml_model.createRateRule()
-        time_rule.setVariable("time_")
-        time_rule.setFormula("1")
+        for obj in reachable_biochemical_network.physical_entities:
+            sbml_species: libsbml.Species = sbml_model.createSpecies()
+            sbml_species.setId(f"{obj}")
+            sbml_species.setCompartment(default_compartment.getId())
+            sbml_species.setConstant(False)
+            sbml_species.setSubstanceUnits("mole")
+            sbml_species.setBoundaryCondition(False)
+            sbml_species.setHasOnlySubstanceUnits(False)
+            sbml_species.setInitialConcentration(0.0)
 
-        kinetic_constants = set[SId]()
-        reaction_like_events_constraints = PartialOrder[ReactomeDbId]()
-        biological_network: BiologicalScenarioDefinition._BiochemicalNetwork = (
-            self.__reachable_biochemical_network(driver)
-        )
+            if (
+                obj.id in reachable_biochemical_network.interface__inputs
+                and obj.id in reachable_biochemical_network.interface_outputs
+            ):
+                # If a species is not produced and not consumed by any reaction
+                # in the network then it can be set to a constant concentration.
+                sbml_parameter: libsbml.Parameter = sbml_model.createParameter()
+                (_id, category) = _set_parameter_category(
+                    sbml_parameter=sbml_parameter,
+                    parameter_category=ConstantCategory.SPECIES_CONCENTRATION,
+                    obj=obj,
+                )
+                kinetic_constants[_id] = category
 
-        for obj in biological_network.network:
-            match obj:
-                case Compartment():
-                    compartment: libsbml.Compartment = (
-                        sbml_model.createCompartment()
+                sbml_assignment_rule: libsbml.AssignmentRule = (
+                    sbml_model.createAssignmentRule()
+                )
+                sbml_assignment_rule.setVariable(f"{sbml_species.getId()}")
+                sbml_assignment_rule.setMath(
+                    libsbml.parseFormula(sbml_parameter.getId())
+                )
+
+                sbml_model.addRule(sbml_assignment_rule)
+                sbml_species.setConstant(True)
+                continue
+
+            # If the species is involved in a reaction of the network then
+            # its mean needs to be computed.
+            sbml_species_mean: libsbml.Parameter = sbml_model.createParameter()
+            sbml_species_mean.setId(f"mean_{obj}")
+            other_parameters[sbml_species_mean.getId()] = (
+                OtherParameterCategory.SPECIES_MEAN
+            )
+            sbml_species_mean.setAnnotation(
+                str(OtherParameterCategory.SPECIES_MEAN)
+            )
+            sbml_species_mean.setConstant(False)
+            sbml_species_mean.setValue(0.0)
+
+            sbml_species_mean_rule: libsbml.RateRule = (
+                sbml_model.createRateRule()
+            )
+            sbml_species_mean_rule.setVariable(sbml_species_mean.getId())
+            sbml_species_mean_rule.setFormula(
+                f"({sbml_species.getId()} - {sbml_species_mean.getId()}) / ({time.getId()} + 10e-6)"
+            )
+
+            if (
+                obj.id in reachable_biochemical_network.interface__inputs
+                or obj.id in reachable_biochemical_network.interface_outputs
+            ):
+                sbml_reaction: libsbml.Reaction = sbml_model.createReaction()
+                sbml_reaction.setReversible(False)
+                sbml_reaction.setFast(False)
+
+                sbml_parameter: libsbml.Parameter = sbml_model.createParameter()
+
+                _species_ref: libsbml.SpeciesReference = (
+                    sbml_model.createProduct()
+                    if obj.id in reachable_biochemical_network.interface__inputs
+                    else sbml_model.createReactant()
+                )
+
+                _species_ref.setSpecies(f"{obj}")
+                _species_ref.setConstant(False)
+                _species_ref.setStoichiometry(1)
+                _kinetic_law: libsbml.KineticLaw = (
+                    sbml_reaction.createKineticLaw()
+                )
+                _id: SId
+                category: ConstantCategory
+                if obj.id in reachable_biochemical_network.interface__inputs:
+                    sbml_reaction.setId(f"reaction_production_{obj}")
+                    (_id, category) = _set_parameter_category(
+                        sbml_parameter=sbml_parameter,
+                        parameter_category=ConstantCategory.PRODUCTION_SPEED,
+                        obj=obj,
                     )
-                    compartment.setId(f"{obj}")
-                    compartment.setConstant(True)
-                    compartment.setSize(1e-9)
-                    compartment.setSpatialDimensions(3)
-                    compartment.setUnits("litre")
-
-                case PhysicalEntity():
-                    species: libsbml.Species = sbml_model.createSpecies()
-                    species.setId(f"{obj}")
-                    species.setCompartment(default_compartment.getId())
-                    species.setConstant(False)
-                    species.setSubstanceUnits("mole")
-                    species.setBoundaryCondition(False)
-                    species.setHasOnlySubstanceUnits(False)
-                    species.setInitialConcentration(0.0)
-
-                    if (
-                        obj.id in biological_network.input_physical_entities
-                        and obj.id
-                        in biological_network.output_physical_entities
-                    ):
-                        stable_constant: libsbml.Parameter = (
-                            sbml_model.createParameter()
-                        )
-                        stable_constant.setId(f"k_{obj}")
-                        stable_constant.setValue(0.0)
-                        stable_constant.setConstant(True)
-                        kinetic_constants.add(stable_constant.getId())
-
-                        rule: libsbml.AssignmentRule = (
-                            sbml_model.createAssignmentRule()
-                        )
-                        rule.setVariable(f"{species.getId()}")
-                        rule.setMath(
-                            libsbml.parseFormula(stable_constant.getId())
-                        )
-                        sbml_model.addRule(rule)
-                        species.setConstant(True)
-                        continue
-
-                    species_mean: libsbml.Parameter = (
-                        sbml_model.createParameter()
+                    _kinetic_law.setMath(
+                        libsbml.parseL3Formula(f"({sbml_parameter.getId()})")
                     )
-                    species_mean.setId(f"mean_{obj}")
-                    species_mean.setConstant(False)
-                    species_mean.setValue(0.0)
-                    species_mean_rule: libsbml.RateRule = (
-                        sbml_model.createRateRule()
+                else:
+                    sbml_reaction.setId(f"reaction_consumption_{obj}")
+                    (_id, category) = _set_parameter_category(
+                        sbml_parameter=sbml_parameter,
+                        parameter_category=ConstantCategory.CONSUMPTION_SPEED,
+                        obj=obj,
                     )
-                    species_mean_rule.setVariable(species_mean.getId())
-                    species_mean_rule.setFormula(
-                        f"({species.getId()} - {species_mean.getId()}) / ({time.getId()} + 10e-6)"
+                    _kinetic_law.setMath(
+                        libsbml.parseL3Formula(f"({_id} * {obj})")
                     )
+                kinetic_constants[_id] = category
 
-                    if (
-                        obj.id in biological_network.input_physical_entities
-                        or obj.id in biological_network.output_physical_entities
-                    ):
-                        e_reaction: libsbml.Reaction = (
-                            sbml_model.createReaction()
+        for obj in reachable_biochemical_network.reaction_like_events:
+            reaction: libsbml.Reaction = sbml_model.createReaction()
+            reaction.setId(f"{obj}")
+            reaction.setReversible(obj.is_reversible)
+            reaction.setFast(False)
+            reaction.setCompartment(default_compartment.getId())
+
+            for physical_entity, metadata in obj.species():
+                species_ref: libsbml.SpeciesReference
+                match metadata.category:
+                    case EntityCategory.INPUT:
+                        species_ref = reaction.createReactant()
+                    case EntityCategory.OUTPUT:
+                        species_ref = reaction.createProduct()
+
+                species_ref.setSpecies(repr(physical_entity))
+                species_ref.setConstant(False)
+                species_ref.setStoichiometry(int(metadata.stoichiometry))
+
+            for physical_entity, _ in obj.modifiers():
+                modifier_species_ref: libsbml.ModifierSpeciesReference = (
+                    reaction.createModifier()
+                )
+                modifier_species_ref.setSpecies(f"{physical_entity}")
+
+            kinetic_law_procedure = self.kinetic_laws.get(
+                obj, self.default_kinetic_law
+            )
+            kinetic_law: libsbml.KineticLaw = reaction.createKineticLaw()
+            kinetic_law.setMath(
+                libsbml.parseL3Formula(
+                    kinetic_law_procedure(sbml_model, obj, kinetic_constants)
+                )
+            )
+
+            for modifier, metadata in obj.modifiers():
+                for modifier_reaction_id in metadata.produced_by:
+                    if modifier_reaction_id != obj.id:
+                        reaction_like_events_order.add(
+                            (modifier_reaction_id, obj.id)
                         )
-                        e_reaction.setReversible(False)
-                        e_reaction.setFast(False)
+                    reaction_like_events_order.add((modifier.id, obj.id))
 
-                        e_kinetic_constant: libsbml.Parameter = (
-                            sbml_model.createParameter()
-                        )
-                        e_kinetic_constant.setValue(0.0)
-                        e_kinetic_constant.setConstant(True)
-
-                        e_species_ref: libsbml.SpeciesReference = (
-                            sbml_model.createProduct()
-                            if obj.id
-                            in biological_network.input_physical_entities
-                            else sbml_model.createReactant()
-                        )
-
-                        e_species_ref.setSpecies(f"{obj}")
-                        e_species_ref.setConstant(False)
-                        e_species_ref.setStoichiometry(1)
-                        e_kinetic_law: libsbml.KineticLaw = (
-                            e_reaction.createKineticLaw()
-                        )
-
-                        if obj.id in biological_network.input_physical_entities:
-                            e_reaction.setId(f"r_in_{obj}")
-                            e_kinetic_constant.setId(f"k_f_in_{obj}")
-                            e_kinetic_law.setMath(
-                                libsbml.parseL3Formula(
-                                    f"({e_kinetic_constant.getId()})"
-                                )
-                            )
-                        else:
-                            e_reaction.setId(f"r_out_{obj}")
-                            e_kinetic_constant.setId(f"k_r_out_{obj}")
-                            e_kinetic_law.setMath(
-                                libsbml.parseL3Formula(
-                                    f"({e_kinetic_constant.getId()} * {obj})"
-                                )
-                            )
-
-                        kinetic_constants.add(e_kinetic_constant.getId())
-
-                case ReactionLikeEvent():
-                    reaction: libsbml.Reaction = sbml_model.createReaction()
-                    reaction.setId(f"{obj}")
-                    reaction.setReversible(obj.is_reversible)
-                    reaction.setFast(False)
-                    reaction.setCompartment("default_compartment")
-
-                    for physical_entity, metadata in obj.species():
-                        species_ref: libsbml.SpeciesReference
-                        match metadata.category:
-                            case EntityCategory.INPUT:
-                                species_ref = reaction.createReactant()
-                            case EntityCategory.OUTPUT:
-                                species_ref = reaction.createProduct()
-
-                        species_ref.setSpecies(repr(physical_entity))
-                        species_ref.setConstant(False)
-                        species_ref.setStoichiometry(
-                            int(metadata.stoichiometry)
-                        )
-
-                    for physical_entity, _ in obj.modifiers():
-                        modifier_species_ref: libsbml.ModifierSpeciesReference = reaction.createModifier()
-                        modifier_species_ref.setSpecies(f"{physical_entity}")
-
-                    kinetic_law_procedure = self.kinetic_laws.get(
-                        obj, self.default_kinetic_law
-                    )
-                    l3_formula, reaction_kinetic_constants = (
-                        kinetic_law_procedure(sbml_model, obj)
-                    )
-                    kinetic_law: libsbml.KineticLaw = (
-                        reaction.createKineticLaw()
-                    )
-                    kinetic_law.setMath(libsbml.parseL3Formula(l3_formula))
-
-                    kinetic_constants = (
-                        kinetic_constants | reaction_kinetic_constants
-                    )
-
-                    for modifier, metadata in obj.modifiers():
-                        for modifier_reaction_id in metadata.produced_by:
-                            if modifier_reaction_id != obj.id:
-                                reaction_like_events_constraints.add(
-                                    (modifier_reaction_id, obj.id)
-                                )
-                            reaction_like_events_constraints.add(
-                                (modifier.id, obj.id)
-                            )
-
+        # All reactions that have a modifier as product are slower than
+        # reactions that are modified.
         kinetic_constants_order: PartialOrder[SId] = set()
-        for reaction_1, reaction_2 in reaction_like_events_constraints:
+        for reaction_1, reaction_2 in reaction_like_events_order:
             for kinetic_constant_1 in kinetic_constants:
-                if repr(
-                    reaction_1
-                ) in kinetic_constant_1 and kinetic_constant_1.startswith(
-                    "k_f"
+                if str(reaction_1) in kinetic_constant_1 and (
+                    kinetic_constant_1.startswith(
+                        ("k_production_", "k_reaction_")
+                    )
                 ):
                     for kinetic_constant_2 in kinetic_constants:
                         if (
-                            repr(reaction_2) in kinetic_constant_2
-                            and kinetic_constant_2.startswith("k_f")
+                            str(reaction_2) in kinetic_constant_2
+                            and kinetic_constant_2.startswith(
+                                ("k_production_", "k_reaction_")
+                            )
                         ):
                             kinetic_constants_order.add(
                                 (kinetic_constant_1, kinetic_constant_2)
@@ -619,30 +676,17 @@ class BiologicalScenarioDefinition:
                     "kinetic_constants_order": list(
                         map(list, kinetic_constants_order)
                     ),
-                    "species_order": list(map(list, self.constraints)),
+                    "species_order": [
+                        list(map(int, order)) for order in self.constraints
+                    ],
                 }
             )
         )
 
         return BiologicalModel(
             sbml_document=sbml_document,
-            kinetic_constants=kinetic_constants,
             species_order=self.constraints,
+            other_parameters=other_parameters,
+            kinetic_constants=kinetic_constants,
             kinetic_constants_order=kinetic_constants_order,
         )
-
-
-# constraints_node: libsbml.XMLNode = (
-#     libsbml.XMLNode.convertStringToXMLNode()
-# )
-#
-# rdf: libsbml.XMLNode = libsbml.RDFAnnotationParser.createRDFAnnotation()
-# _ = rdf.addChild(constraints_node)
-# node: libsbml.XMLNode = libsbml.RDFAnnotationParser.createAnnotation()
-# _ = node.addChild(rdf)
-# f"""
-#     {{
-#         "kinetic_constants_constraints": [{", ".join(f"[{left}, {right}]" for (left, right) in kinetic_constants_constraints)}],
-#         "physical_entities_constraints": [{", ".join(f"[{int(left)}, {int(right)}]" for (left, right) in self.constraints)}]
-#     }}
-# """

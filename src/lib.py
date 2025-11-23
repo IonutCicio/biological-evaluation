@@ -1,6 +1,5 @@
 import argparse
 import logging
-import re
 import sys
 from dataclasses import dataclass, field
 from logging import Logger
@@ -41,7 +40,7 @@ def init() -> tuple[Option, Logger]:
         help="log file",
         metavar="logfile",
     )
-    args = argument_parser.parse_args()
+    args: argparse.Namespace = argument_parser.parse_args()
 
     assert isinstance(args.env, list | None)
     assert isinstance(args.task_id, str | None)
@@ -51,7 +50,7 @@ def init() -> tuple[Option, Logger]:
         for dotenv_path in args.env:
             _ = load_dotenv(dotenv_path=dotenv_path.strip())
 
-    logger = logging.getLogger(__name__)
+    logger: Logger = logging.getLogger(__name__)
     logging.basicConfig(stream=args.log, level=logging.INFO)
 
     return (
@@ -63,29 +62,22 @@ def init() -> tuple[Option, Logger]:
     )
 
 
-def config(biological_model: BiologicalModel) -> tuple[space.Space, IntGTZ]:
+def openbox_config(
+    biological_model: BiologicalModel,
+) -> tuple[space.Space, IntGTZ]:
     _space: space.Space = space.Space()
     _space.add_variables(
         [
             space.Real(
                 name=kinetic_constant,
-                lower=-20.0,
-                upper=0.0 if kinetic_constant.startswith("k_s_") else 20.0,
-                default_value=0.0,
+                lower=category.interval().lower_bound,
+                upper=category.interval().upper_bound,
+                default_value=-20.0,
             )
-            for kinetic_constant in biological_model.kinetic_constants
+            for kinetic_constant, category in biological_model.kinetic_constants.items()
         ]
     )
 
-    num_objectives = (
-        biological_model.sbml_document.getModel().getNumSpecies()
-        - len(
-            {
-                kinetic_constant
-                for kinetic_constant in biological_model.kinetic_constants
-                if re.match(r"k_s_\d+", kinetic_constant)
-            }
-        )
-    ) * 2
+    num_objectives = IntGTZ((len(biological_model.other_parameters) - 1) * 2)
 
     return _space, num_objectives
