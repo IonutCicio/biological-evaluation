@@ -43,6 +43,7 @@ def main() -> None:
         url=openbox_url, task_id=option.task_id
     )
     _timedelta_suggestion = perf_counter() - start_time
+    logger.info(suggestion)
 
     # Compute objective function value
 
@@ -55,6 +56,7 @@ def main() -> None:
         }
     )
     _timedelta_blackbox = perf_counter() - start_time
+    logger.info(result["objectives"])
 
     start_time = perf_counter()
     buckpass.openbox_api.update_observation(
