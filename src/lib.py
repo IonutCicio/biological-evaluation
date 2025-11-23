@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from logging import Logger
 
 import buckpass
-from biological_scenarios_generation.core import IntGTZ
+from biological_scenarios_generation.core import IntGEZ, IntGTZ
 from biological_scenarios_generation.model import BiologicalModel
 from dotenv import load_dotenv
 from openbox import space
@@ -20,14 +20,7 @@ class Option:
 def init() -> tuple[Option, Logger]:
     argument_parser: argparse.ArgumentParser = argparse.ArgumentParser()
     _ = argument_parser.add_argument(
-        "-e",
-        "--env",
-        dest="env",
-        nargs="*",
-        # default=".env",
-        # type=Path,
-        help=".env files to load before runing the script",
-        metavar=None,
+        "-e", "--env", dest="env", nargs="*", metavar=None
     )
     _ = argument_parser.add_argument("-t", "--task", dest="task_id")
     _ = argument_parser.add_argument(
@@ -37,7 +30,6 @@ def init() -> tuple[Option, Logger]:
         nargs=None,
         default=sys.stdout,
         type=argparse.FileType("w"),
-        help="log file",
         metavar="logfile",
     )
     args: argparse.Namespace = argument_parser.parse_args()
@@ -64,7 +56,7 @@ def init() -> tuple[Option, Logger]:
 
 def openbox_config(
     biological_model: BiologicalModel,
-) -> tuple[space.Space, IntGTZ]:
+) -> tuple[space.Space, IntGTZ, IntGEZ]:
     _space: space.Space = space.Space()
     _space.add_variables(
         [
@@ -80,4 +72,6 @@ def openbox_config(
 
     num_objectives = IntGTZ((len(biological_model.other_parameters) - 1) * 2)
 
-    return _space, num_objectives
+    num_constraints = IntGEZ(0)
+
+    return _space, num_objectives, num_constraints

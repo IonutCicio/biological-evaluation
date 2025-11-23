@@ -17,7 +17,7 @@ def main() -> None:
         sbml_document=libsbml.readSBML(filepath)
     )
 
-    _space, num_objectives = openbox_config(biological_model)
+    _space, num_objectives, num_constraints = openbox_config(biological_model)
     max_runs: int = int(os.getenv("MAX_RUNS", default="1000"))
 
     task_id = buckpass.openbox_api.register_task(
@@ -27,21 +27,23 @@ def main() -> None:
         email=str(os.getenv("OPENBOX_EMAIL")),
         password=str(os.getenv("OPENBOX_PASSWORD")),
         task_name=f"{filepath}_{'_'.join(option.env)}",
-        num_objectives=int(num_objectives),
-        num_constraints=0,
+        num_objectives=num_objectives,
+        num_constraints=num_constraints,
         advisor_type=os.getenv("ADVISOR_TYPE", default="default"),
         sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
         surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
         acq_type=os.getenv("ACQ_TYPE", default="mesmo"),
-        parallel_type="async",
+        parallel_type=os.getenv("PARALLEL_STRATEGY", default="async"),
         acq_optimizer_type=os.getenv(
             "ACQ_OPTIMIZER_TYPE", default="random_scipy"
         ),
         initial_runs=0,
-        random_state=1,
-        active_worker_num=int(os.getenv("RANDOM_STATE", default="1")),
+        random_state=int(os.getenv("RANDOM_STATE", default="1")),
+        active_worker_num=int(os.getenv("BATCH_SIZE", default="8")),
         max_runs=max_runs,
-        max_runtime_per_trial=1000,
+        max_runtime_per_trial=int(
+            os.getenv("MAX_RUNTIME_PER_TRIAL", default="30")
+        ),
     )
 
     _ = BurstPolicy(

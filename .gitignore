@@ -232,3 +232,4 @@ TODO
 experiments/
 data.json
 *.env
+*.json

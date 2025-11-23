@@ -1,13 +1,10 @@
 import os
 
 import libsbml
-from biological_scenarios_generation.model import (
-    BiologicalModel,
-    VirtualPatient,
-)
-from openbox import ParallelOptimizer
+from biological_scenarios_generation.model import BiologicalModel
+from openbox import Optimizer
 
-import blackbox
+from blackbox import FAIL_COST, Config, blackbox
 from lib import init, openbox_config
 
 _, logger = init()
@@ -16,38 +13,40 @@ _, logger = init()
 filepath = os.getenv("SBML")
 assert filepath
 
-biological_model: BiologicalModel = BiologicalModel.load(
-    libsbml.readSBML(filepath)
-)
-_space, num_objectives = openbox_config(biological_model)
 
-
-def _objective_function(
-    virtual_patient: VirtualPatient,
-) -> dict[str, list[float]]:
+def _custom_objective_function(config: Config) -> dict[str, list[float]]:
     biological_model: BiologicalModel = BiologicalModel.load(
-        libsbml.readSBML(filepath)
+        sbml_document=libsbml.readSBML(filepath)
     )
-    _space, num_objectives = openbox_config(biological_model)
+    _space, num_objectives, num_constraints = openbox_config(biological_model)
     objectives: list[float] = []
     try:
-        cost = blackbox.blackbox(biological_model, virtual_patient)
+        cost = blackbox(
+            biological_model,
+            {
+                kinetic_constant: 10**value
+                for kinetic_constant, value in config.items()
+            },
+        )
         objectives = cost.normalization + cost.transitory
     except:
-        objectives = [2] * num_objectives
+        objectives = [FAIL_COST] * num_objectives
 
     return {"objectives": objectives}
 
 
 def main() -> None:
-    optimizer = ParallelOptimizer(
-        objective_function=_objective_function,
+    biological_model: BiologicalModel = BiologicalModel.load(
+        sbml_document=libsbml.readSBML(filepath)
+    )
+    _space, num_objectives, num_constraints = openbox_config(biological_model)
+
+    # TODO: add missing arguments
+    optimizer = Optimizer(
+        objective_function=_custom_objective_function,
         config_space=_space,
         num_objectives=num_objectives,
-        num_constraints=0,
-        parallel_strategy="async",
-        batch_size=8,
-        batch_strategy="default",
+        num_constraints=num_constraints,
         sample_strategy=os.getenv("SAMPLE_STRATEGY", default="bo"),
         max_runs=int(os.getenv("MAX_RUNS", default="1000")),
         surrogate_type=os.getenv("SURROGATE_TYPE", default="prf"),
@@ -61,6 +60,11 @@ def main() -> None:
     )
 
     history = optimizer.run()
+
+
+# parallel_strategy="async",
+# batch_size=8,
+# batch_strategy="default",
 
 
 if __name__ == "__main__":

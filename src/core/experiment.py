@@ -69,21 +69,63 @@ def main() -> None:
         biological_model: BiologicalModel = BiologicalModel.load(sbml_document)
 
     virtual_patient = biological_model()
-    # virtual_patient = {
-    #     kinetic_constant: 10**value
-    #     for kinetic_constant, value in kinetic_constants.items()
-    # }
-    _, num_objectives = openbox_config(biological_model)
+    kinetic_constants = {
+        "k_consumption_reaction_species_111294": -20.0,
+        "k_consumption_reaction_species_202124": -20.0,
+        "k_consumption_reaction_species_29356": -20.0,
+        "k_consumption_reaction_species_29366": -20.0,
+        "k_consumption_reaction_species_29968": -20.0,
+        "k_consumption_reaction_species_30389": -20.0,
+        "k_half_saturation_0_reaction_111930": -20.0,
+        "k_half_saturation_0_reaction_170676": -20.0,
+        "k_half_saturation_0_reaction_202127": -20.0,
+        "k_half_saturation_0_reaction_392129": -20.0,
+        "k_half_saturation_0_reaction_5610727": -20.0,
+        "k_half_saturation_1_reaction_111930": -20.0,
+        "k_half_saturation_1_reaction_202127": -20.0,
+        "k_half_saturation_1_reaction_392129": -20.0,
+        "k_half_saturation_1_reaction_5610727": -20.0,
+        "k_half_saturation_2_reaction_111930": -20.0,
+        "k_half_saturation_2_reaction_392129": -20.0,
+        "k_half_saturation_2_reaction_5610727": -20.0,
+        "k_production_reaction_species_113592": -20.0,
+        "k_production_reaction_species_29364": -20.0,
+        "k_production_reaction_species_29368": -20.0,
+        "k_production_reaction_species_29468": -20.0,
+        "k_production_reaction_species_70106": -20.0,
+        "k_reaction_111930": -20.0,
+        "k_reaction_170676": -20.0,
+        "k_reaction_202127": -20.0,
+        "k_reaction_392129": -20.0,
+        "k_reaction_5610727": -20.0,
+        "k_species_111865": -20.0,
+        "k_species_1497830": -20.0,
+        "k_species_163622": -20.0,
+        "k_species_164358": -20.0,
+        "k_species_170655": -20.0,
+        "k_species_170665": -20.0,
+        "k_species_392049": -20.0,
+        "k_species_396910": -20.0,
+        "k_species_5610577": -20.0,
+        "k_species_5610579": -20.0,
+        "k_species_5693375": -20.0,
+        "k_species_74294": -20.0,
+    }
+    virtual_patient = {
+        kinetic_constant: 10**value
+        for kinetic_constant, value in kinetic_constants.items()
+    }
+    _, num_objectives, _ = openbox_config(biological_model)
     logger.info(
-        objective_function(biological_model, num_objectives)(virtual_patient)
+        objective_function(biological_model, num_objectives)(kinetic_constants)
     )
 
     try:
         cost = plot(biological_model, virtual_patient=virtual_patient)
-        logger.info(cost.normalization)
-        logger.info(cost.transitory)
-        logger.info(cost.modifiers)
-        logger.info(cost.order)
+        logger.info("NORMALIZATION - %s", cost.normalization)
+        logger.info("TRANSITORY - %s", cost.transitory)
+        logger.info("MODIFIERS - %s", cost.modifiers)
+        logger.info("ORDER - %s", cost.order)
     except Exception:
         logger.exception("")
         logger.info("inf")

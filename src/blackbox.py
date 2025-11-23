@@ -12,6 +12,7 @@ import roadrunner
 from biological_scenarios_generation.core import IntGTZ
 from biological_scenarios_generation.model import (
     BiologicalModel,
+    SId,
     VirtualPatient,
 )
 
@@ -81,44 +82,23 @@ def _blackbox(
             )
 
     for species_1, species_2 in biological_model.species_order:
-        diff: float = (
+        delta: float = (
             result[-1, rr.timeCourseSelections.index(f"[{species_1}]")]
             - result[-1, rr.timeCourseSelections.index(f"[{species_2}]")]
         )
-        cost.order.append(float(math.log(max(diff, 0) + 1)))
+        cost.order.append(float(math.log(max(delta, 0) + 1)))
 
     for (
         kinetic_constant_1,
         kinetic_constant_2,
     ) in biological_model.kinetic_constants_order:
-        diff: float = (
+        delta: float = (
             virtual_patient[kinetic_constant_1]
             - virtual_patient[kinetic_constant_2]
         )
-        cost.modifiers.append(float(math.log(max(diff, 0) + 1)))
+        cost.modifiers.append(float(math.log(max(delta, 0) + 1)))
 
     return (result, rr, cost)
-
-
-SIMULATION_FAIL_COST: float = sys.float_info.max
-
-
-def objective_function(
-    biological_model: BiologicalModel, num_objectives: IntGTZ
-) -> Callable[[VirtualPatient], dict[str, list[float]]]:
-    def _objective_function(
-        virtual_patient: VirtualPatient,
-    ) -> dict[str, list[float]]:
-        objectives: list[float]
-        try:
-            cost = blackbox(biological_model, virtual_patient)
-            objectives = cost.normalization + cost.transitory
-        except:
-            objectives = [SIMULATION_FAIL_COST] * num_objectives
-
-        return {"objectives": objectives}
-
-    return _objective_function
 
 
 def blackbox(
@@ -128,6 +108,34 @@ def blackbox(
         biological_model=biological_model, virtual_patient=virtual_patient
     )
     return cost
+
+
+FAIL_COST: float = sys.float_info.max
+
+
+Config: TypeAlias = dict[SId, float]
+
+
+def objective_function(
+    biological_model: BiologicalModel, num_objectives: IntGTZ
+) -> Callable[[Config], dict[str, list[float]]]:
+    def _objective_function(config: Config) -> dict[str, list[float]]:
+        objectives: list[float]
+        try:
+            cost = blackbox(
+                biological_model,
+                virtual_patient={
+                    kinetic_constant: 10**value
+                    for kinetic_constant, value in config.items()
+                },
+            )
+            objectives = cost.normalization + cost.transitory
+        except:
+            objectives = [FAIL_COST] * num_objectives
+
+        return {"objectives": objectives}
+
+    return _objective_function
 
 
 def plot(
@@ -140,10 +148,8 @@ def plot(
     time = trajectory[:, 0]
     for col_number, col_name in enumerate(rr.timeCourseSelections):
         if "mean" in col_name:
-            name = col_name
-            _ = pylab.plot(time, trajectory[:, col_number], label=str(name))
+            _ = pylab.plot(time, trajectory[:, col_number], label=str(col_name))
             _ = pylab.legend()
 
     pylab.show()
-
     return cost

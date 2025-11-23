@@ -5,21 +5,23 @@ from time import perf_counter
 
 import buckpass
 import libsbml
-from biological_scenarios_generation.model import (
-    BiologicalModel,
-    VirtualPatient,
-)
+from biological_scenarios_generation.model import BiologicalModel
 from openbox.utils.constants import FAILED, SUCCESS
 
-from blackbox import SIMULATION_FAIL_COST, objective_function
+from blackbox import FAIL_COST, Config, objective_function
 from lib import init, openbox_config
 
 option, logger = init()
+
+OPENBOX_URL: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
+    host=os.getenv("VM_HOST", default=""), port=8000
+)
 
 
 def main() -> None:
     filepath: str | None = os.getenv("SBML")
     assert filepath
+
     worker_start_time = datetime.now(tz=UTC)
 
     # Load model
@@ -30,39 +32,32 @@ def main() -> None:
             f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}/{filepath}"
         )
     )
-    _, num_objectives = openbox_config(biological_model)
+    _, num_objectives, _ = openbox_config(biological_model)
     _timedelta_load = perf_counter() - start_time
 
     # Ask suggestion
 
     start_time = perf_counter()
-    openbox_url: buckpass.openbox_api.URL = buckpass.openbox_api.URL(
-        host=os.getenv("VM_HOST", default=""), port=8000
-    )
-    suggestion: VirtualPatient = buckpass.openbox_api.get_suggestion(  # pyright: ignore[reportAny]
-        url=openbox_url, task_id=option.task_id
+    config: Config = buckpass.openbox_api.get_suggestion(  # pyright: ignore[reportAny]
+        url=OPENBOX_URL, task_id=option.task_id
     )
     _timedelta_suggestion = perf_counter() - start_time
-    logger.info(suggestion)
+    logger.info(config)
 
     # Compute objective function value
 
     start_time = perf_counter()
-    _objective_function = objective_function(biological_model, num_objectives)
-    result = _objective_function(
-        {
-            kinetic_constant: 10**value
-            for kinetic_constant, value in suggestion.items()
-        }
-    )
+    result = objective_function(biological_model, num_objectives)(config)
     _timedelta_blackbox = perf_counter() - start_time
     logger.info(result["objectives"])
 
+    # Send observation to OpenBox
+
     start_time = perf_counter()
     buckpass.openbox_api.update_observation(
-        url=openbox_url,
+        url=OPENBOX_URL,
         task_id=option.task_id,
-        config_dict=suggestion,
+        config_dict=config,
         objectives=result["objectives"],
         constraints=[],
         trial_info={
@@ -76,9 +71,7 @@ def main() -> None:
                 }
             ),
         },
-        trial_state=FAILED
-        if result["objectives"][0] == SIMULATION_FAIL_COST
-        else SUCCESS,
+        trial_state=FAILED if result["objectives"][0] == FAIL_COST else SUCCESS,
     )
     _timedelta_observation = perf_counter() - start_time
     logger.info(_timedelta_observation)
