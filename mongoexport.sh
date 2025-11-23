@@ -11,4 +11,13 @@ docker exec -it biological-evaluation-mongo-1 mongoexport \
     --collection runhistory --db=$MONGO_INITDB_DATABASE \
     --type="json" \
     --jsonArray \
-    --quiet > data.json
+    --quiet > runhistory.json
+
+docker exec -it biological-evaluation-mongo-1 mongoexport \
+    -u $MONGO_INITDB_ROOT_USERNAME \
+    -p $MONGO_INITDB_ROOT_PASSWORD \
+    --authenticationDatabase "admin" \
+    --collection task --db=$MONGO_INITDB_DATABASE \
+    --type="json" \
+    --jsonArray \
+    --quiet > task.json

@@ -72,7 +72,7 @@ def openbox_config(
                 name=kinetic_constant,
                 lower=category.interval().lower_bound,
                 upper=category.interval().upper_bound,
-                default_value=-20.0,
+                default_value=0.0,
             )
             for kinetic_constant, category in biological_model.kinetic_constants.items()
         ]

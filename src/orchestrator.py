@@ -41,6 +41,7 @@ def main() -> None:
         random_state=1,
         active_worker_num=int(os.getenv("RANDOM_STATE", default="1")),
         max_runs=max_runs,
+        max_runtime_per_trial=1000,
     )
 
     _ = BurstPolicy(
