@@ -16,7 +16,7 @@ def main() -> None:
     tasks_of_interest: dict[str, Any] = {
         task["_id"]["$oid"]: task
         for task in tasks
-        if task["create_time"]["$date"].startswith("2025-11-23")
+        if task["create_time"]["$date"].startswith("2025-11-24")
     }
 
     with Path("runhistory.json").open() as file:
@@ -37,34 +37,40 @@ def main() -> None:
 
         for x, run in enumerate(task_runhistory):
             trial_info = json.loads(run["trial_info"])
-            # trial_info["load_duration"]
-            # trial_info["start_time"]
-            print(trial_info["suggestion_duration"])
+            if "blackbox_duration" in trial_info:
+                print(trial_info["blackbox_duration"])
             cost: float = sum(run["result"])
-            # if cost < 3:
-            #     print(run["config"], end="\n\n")
             if cost < optimal_cost:
                 optimal_cost = cost
                 optimal_x.append(x)
                 optimal_y.append(cost)
             else:
                 non_optimal_x.append(x)
-                non_optimal_y.append(min(cost, 100))
+                non_optimal_y.append(min(cost, 20))
 
         optimal_x.append(len(task_runhistory))
         optimal_y.append(optimal_cost)
-
-        if len(optimal_y) + len(non_optimal_y) > 10:
-            print(task["task_name"])
-            _ = pylab.plot(non_optimal_x, non_optimal_y, "o", color="gray")
-            _ = pylab.plot(optimal_x, optimal_y, "o-")
-            _ = pylab.savefig(f"docs/{task_id}.svg")
-            # _ = pylab.show()
+        # TODO: set plot name
+        _ = pylab.plot(non_optimal_x, non_optimal_y, "o", color="gray")
+        _ = pylab.plot(optimal_x, optimal_y, "o-")
+        _ = pylab.savefig(f"docs/{task_id}.svg")
+        _ = pylab.ylim(bottom=0, top=20)
+        _ = pylab.title(label=task["task_name"])
+        _ = pylab.show()
 
 
 if __name__ == "__main__":
     main()
 
+# trial_info["load_duration"]
+# trial_info["start_time"]
+
+# if cost < 3:
+#     print(run["config"], end="\n\n")
+# print(tasks_of_interest)
+
+# if len(optimal_y) + len(non_optimal_y) > 10:
+# print(task["task_name"])
 # tasks: list[str] = [
 #     "692074b32da3c47a0b4e07c8",
 #     "692075f42da3c47a0b4e0a40",
