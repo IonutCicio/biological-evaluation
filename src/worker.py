@@ -8,8 +8,8 @@ import libsbml
 from biological_scenarios_generation.model import BiologicalModel
 from openbox.utils.constants import FAILED, SUCCESS
 
-from blackbox import FAIL_COST, Config, objective_function
-from lib import init, openbox_config
+from core.blackbox import FAIL_COST, Config, objective_function
+from core.lib import init, openbox_config
 
 option, logger = init()
 

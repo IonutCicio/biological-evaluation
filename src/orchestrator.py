@@ -4,7 +4,7 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 
-from lib import init, openbox_config
+from core.lib import init, openbox_config
 
 option, logger = init()
 

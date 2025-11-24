@@ -2,46 +2,26 @@ import os
 
 import libsbml
 from biological_scenarios_generation.model import BiologicalModel
-from openbox import ParallelOptimizer
+from openbox import Advisor, Observation
 
-from blackbox import FAIL_COST, Config, blackbox
-from lib import init, openbox_config
+from core.blackbox import Config, objective_function
+from core.lib import init, openbox_config
 
-_, logger = init()
-
-
-filepath = os.getenv("SBML")
-assert filepath
-
-
-def _objective_function(config: Config) -> dict[str, list[float]]:
-    biological_model: BiologicalModel = BiologicalModel.load(
-        libsbml.readSBML(filepath)
-    )
-    _space, num_objectives, _ = openbox_config(biological_model)
-    objectives: list[float] = []
-    try:
-        cost = blackbox(
-            biological_model,
-            {
-                kinetic_constant: 10**value
-                for kinetic_constant, value in config.items()
-            },
-        )
-        objectives = cost.normalization + cost.transitory
-    except:
-        objectives = [FAIL_COST] * num_objectives
-
-    return {"objectives": objectives}
+option, logger = init()
 
 
 def main() -> None:
+    filepath = os.getenv("SBML")
+    assert filepath
+
     biological_model: BiologicalModel = BiologicalModel.load(
         libsbml.readSBML(filepath)
     )
     _space, num_objectives, num_constraints = openbox_config(biological_model)
-    optimizer = ParallelOptimizer(
-        objective_function=_objective_function,
+    _objective_function = objective_function(biological_model, num_objectives)
+
+    max_runs = int(os.getenv("MAX_RUNS", default="1000"))
+    advisor = Advisor(
         config_space=_space,
         num_objectives=num_objectives,
         num_constraints=num_constraints,
@@ -57,10 +37,16 @@ def main() -> None:
         ),
         initial_runs=0,
         logging_dir=f"{os.getenv('HOME')}/logs",
-        random_state=1,  # TODO: env variable for random_state
+        random_state=int(os.getenv("RANDOM_STATE", default="1")),
+        task_id=option.env[0],
     )
 
-    history = optimizer.run()
+    for _ in range(max_runs):
+        config: Config = advisor.get_suggestion()
+        result = _objective_function(config)
+        advisor.update_observation(
+            Observation(config=config, objectives=result["objectives"])
+        )
 
 
 if __name__ == "__main__":

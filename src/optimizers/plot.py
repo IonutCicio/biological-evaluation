@@ -4,7 +4,7 @@ from typing import Any
 
 from matplotlib import pylab
 
-from lib import init
+from core.lib import init
 
 _ = init()
 

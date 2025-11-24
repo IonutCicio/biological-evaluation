@@ -79,9 +79,7 @@ def law_of_mass_action(
 
     formula_hill_component: str = ""
     modifiers_functions: list[str] = []
-    for modifier_id, (modifier, metadata) in enumerate(
-        reaction_like_event.modifiers()
-    ):
+    for modifier, metadata in reaction_like_event.modifiers():
         half_saturation_constant: libsbml.Parameter = (
             sbml_model.createParameter()
         )
@@ -89,7 +87,7 @@ def law_of_mass_action(
             sbml_parameter=half_saturation_constant,
             parameter_category=ConstantCategory.HALF_SATURATION,
             obj=reaction_like_event,
-            extra=str(modifier_id),
+            extra=f"{modifier}",
         )
         kinetic_constants[_id] = category
 

@@ -16,7 +16,7 @@ from biological_scenarios_generation.model import (
     VirtualPatient,
 )
 
-from lib import init
+from core.lib import init
 
 _ = init()
 

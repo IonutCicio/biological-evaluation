@@ -15,8 +15,8 @@ from biological_scenarios_generation.scenario import (
 )
 from neo4j.exceptions import ServiceUnavailable
 
-from blackbox import objective_function, plot
-from lib import init, openbox_config
+from core.blackbox import objective_function, plot
+from core.lib import init, openbox_config
 
 _, logger = init()
 
@@ -111,16 +111,16 @@ def main() -> None:
         "k_species_5693375": -20.0,
         "k_species_74294": -20.0,
     }
-    virtual_patient = {
-        kinetic_constant: 10**value
-        for kinetic_constant, value in kinetic_constants.items()
-    }
     _, num_objectives, _ = openbox_config(biological_model)
     logger.info(
         objective_function(biological_model, num_objectives)(kinetic_constants)
     )
 
     try:
+        virtual_patient = {
+            kinetic_constant: 10**value
+            for kinetic_constant, value in kinetic_constants.items()
+        }
         cost = plot(biological_model, virtual_patient=virtual_patient)
         logger.info("NORMALIZATION - %s", cost.normalization)
         logger.info("TRANSITORY - %s", cost.transitory)
