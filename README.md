@@ -29,3 +29,13 @@ HER2: A signaling protein that requires minimal amounts for effective signaling
 input: { 29356, 29364, 29368, 29468, 5693375, 1497830, 164358, 5610577, 5610579
 
 output: { 70106, 29968, 29336, 202124
+
+In the context of signal transduction pathways, species can refer to various molecules such as proteins, ions, or other signaling molecules. Here are two sets based on their concentration levels:
+- High Concentration Species
+    1. Cyclic AMP (cAMP) - A common second messenger that is often present in relatively high concentrations in cells.
+    2. Calcium ions (Ca²⁺) - These ions are crucial for many signaling processes and can be found at high concentrations within specific compartments of the cell.
+- Low Concentration Species
+    1. Nitric Oxide (NO) - A signaling molecule that is typically present in very low concentrations due to its short half-life.
+    2. Receptor Tyrosine Kinases (RTKs) - While these proteins are critical for signaling, their expression levels can vary widely, and they are often present at lower concentrations compared to other signaling molecules.
+
+These sets illustrate the diversity in concentration levels of different species involved in signal transduction pathways

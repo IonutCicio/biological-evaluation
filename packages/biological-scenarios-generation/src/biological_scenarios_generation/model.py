@@ -74,7 +74,7 @@ class BiologicalModel:
             else:
                 other_parameters[parameter.getId()] = parameter_category
 
-        order: dict[str, list[list[str]]] = json.loads(
+        model_annotation: dict[str, list[list[str]]] = json.loads(
             sbml_document.getModel()
             .getAnnotationString()
             .replace("<annotation>", "")
@@ -89,14 +89,15 @@ class BiologicalModel:
                     PhysicalEntity(id=ReactomeDbId(int(species_1))),
                     PhysicalEntity(id=ReactomeDbId(int(species_2))),
                 )
-                for (species_1, species_2) in order["species_order"]
+                for (species_1, species_2) in model_annotation["species_order"]
             },
             kinetic_constants=kinetic_constants,
             kinetic_constants_order={
                 (kinetic_constant_1, kinetic_constant_2)
-                for (kinetic_constant_1, kinetic_constant_2) in order[
-                    "kinetic_constants_order"
-                ]
+                for (
+                    kinetic_constant_1,
+                    kinetic_constant_2,
+                ) in model_annotation["kinetic_constants_order"]
             },
             other_parameters=other_parameters,
         )

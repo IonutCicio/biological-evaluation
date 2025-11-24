@@ -38,6 +38,7 @@ def main() -> None:
     )
 
     _ = optimizer.run()
+    optimizer.get_history().save_json("random_logs.json")
 
 
 if __name__ == "__main__":
