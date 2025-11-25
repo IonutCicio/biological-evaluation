@@ -27,8 +27,11 @@
 \usepackage{biblatex}
 \usepackage{graphicx}
 
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmin}{argmin}
+
 \definecolor{lightgray}{gray}{0.9} % 0.9 is very light, 0.1 is very dark
-\linespread{0.9}
+% \linespread{0.9}
 \hypersetup{
     hyperfootnotes=true,			
     bookmarks=true,			
@@ -133,7 +136,6 @@ basicstyle= % <-- Add this for the rest of the text
 }
 
 \addbibresource{bibliography.bib}
-% \setcitestyle{authoryear,open={(},close={)}} % Set citation style
 
 \newcounter{definition}
 \renewcommand{\thedefinition}{\arabic{definition}}
@@ -159,63 +161,271 @@ basicstyle= % <-- Add this for the rest of the text
 
 \chapter{Introduction}
 
-Biological systems such as organisms, cells, or biomolecules 
-are highly organized in their structure and function, \cite{Klipp16}.
+Biological systems such as organisms, cells, or biomolecules are highly
+organized in their structure and function, \cite{Klipp16}.
 % [structure which is a consequence of evolution]. 
-[Such structures can help study the and compare biological functions of  
-different organisms]. [In order to understand, formalize and abstract these structures 
-some kind of modeling is needed, be it mathematical or not (what not?)].
+[Such structures can help study the and compare biological functions of
+different organisms]. [In order to understand, formalize and abstract these
+structures some kind of modeling is needed, be it mathematical or not (what
+not?)].
 
 
-In this report is presented a proof of concept which generates biological models by using the concept 
-of reachability and databases of biochemical reactions.
+In this report is presented a proof of concept which generates biological models
+by using the concept of reachability and databases of biochemical reactions.
 
 
-[A fundamental component of bioinformatics is data integration, (a problem is) i.e. partial information in distributed databases is needed]. 
-[One such data source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
-REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database.
-[The goal with this work is to use qualitative data in the Reactome database to generate 
-quantitative models, and use BBO (cite something) techinques to "validate" 
-(validate is not good, find something else) these models]
+[A fundamental component of bioinformatics is data integration, (a problem is)
+i.e. partial information in distributed databases is needed]. [One such data
+source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
+REACTOME is an open-source, open access, manually curated and peer-reviewed
+pathway database. [The goal with this work is to use qualitative data in the
+Reactome database to generate quantitative models, and use BBO (cite something)
+techinques to "validate" (validate is not good, find something else) these
+models]
 
-[Validating complex biological models is a computationally intensive task (cite something)
-thus HPC clusters are required in order. ] 
-{Such clusters may not always be fully available 
-(i.e. there are multiple users and multiple experiments running on the cluster +
-there are some limits on job running times),
-so in order to better distribute the load of the validation task some infrastructure
-work is needed.}
+[Validating complex biological models is a computationally intensive task (cite
+something) thus HPC clusters are required in order. ] {Such clusters may not
+always be fully available (i.e. there are multiple users and multiple
+experiments running on the cluster + there are some limits on job running
+times), so in order to better distribute the load of the validation task some
+infrastructure work is needed.}
 
 \newpage
 
-\section{Computational modeling of biological systems} % TODO: Motivation
 
-% []
+\section{Preliminaries}
+
+The set of non-zero natural numbers is denoted with $\mathbb{N}_+ = \mathbb{N} - \{ 0 \}$.
+
+\section{Biochemical networks} % TODO: Motivation
+
+Biochemical networks are one of the main concepts often used to model
+biological systems \cite{Koutrouli2023erratum}. Such networks are made up of
+relations between physical entities (small molecules, proteins, nucleic acids,
+chemical compounds, complexes, larger macromolecular assemblies, atoms,
+electrons, and photons \cite{ReactomeDataModelGlossary}) and reactions (such as
+standard chemical reactions, translocation of molecules from one compartment to
+another, association of molecules to form complexes and polymers, etc...
+\cite{ReactomeDataModelGlossary}). More often than not biochemical networks are
+organized in pathways, sets of causally connected
+reactions \cite{ReactomeDataModelGlossary}; such pathways, in pathway databases
+like Reactome (Figure \ref{fig:reactome-uml}) are organized hierarchically:
+Reactome has top-level pathways, like \textit{Signal transduction} (reactions
+where extracellular signals elicit changes in cell state and activity),
+\textit{Muscle contraction} (Figure
+\ref{fig:striated-muscle-contraction-hierarchy}) and the \textit{Neuronal
+system}, each composed of other smaller pathways or reactions.
+
+%TODO: cite signal transduction definition from reactome
+
+\begin{figure}[H]
+    \includegraphics[width=\textwidth]{./images/striated_muscle_contration.pdf}
+    % \includegraphics[]{./images/legend.png}
+    % (R-HSA-390522.3) 
+    % https://reactome.org/PathwayBrowser/#/R-HSA-390522&PATH=R-HSA-397014
+    \caption{
+        \textit{Striated muscle contraction} pathway within the \textit{Muscle
+        contraction} pathway in the Reactome PathwayBrowser
+        \cite{ReactomeStriatedMuscleContraction}
+    }
+    \label{fig:striated-muscle-contraction}
+\end{figure}
+
+% TODO: add legend here, or somewhere
+
+% Here striated muscle contraction is represented on the basis of calcium binding
+% to the troponin complex, which exposes the active sites of actin. Once the
+% active sites of actin are exposed, the myosin complex bound to ADP can bind
+% actin and the myosin head can pivot, pulling the thin actin and thick myosin
+% filaments past one another. Once the myosin head pivots, ADP is ejected, a fresh
+% ATP can be bound and the energy from the hydrolysis of ATP to ADP is channeled
+% into kinetic energy by resetting the myosin head. With repeated rounds of this
+% cycle the sarcomere containing the thin and thick filaments effectively
+% shortens, forming the basis of muscle contraction.
+
+The biochemical network in Figure \ref{fig:striated-muscle-contraction}
+represents the \textit{Striated muscle contraction} pathway in the
+\textit{Cytosol} compartment, a process where force is generated within
+striated muscle tissue, resulting in muscle movement
+\cite{ReactomeStriatedMuscleContraction}. Here the pathway has the following
+reactions:
+
+% association / binding
+
+% Striated muscle contraction Figure  is a process
+% whereby force is generated within striated muscle tissue, resulting in a change
+% in muscle geometry, or in short, increased force being exerted on the tendons.
+% Force generation involves a chemo-mechanical energy conversion step that is
+% carried out by the actin/myosin complex activity, which generates force through
+% ATP hydrolysis. Striated muscle is a type of muscle composed of myofibrils,
+% containing repeating units called sarcomeres, in which the contractile
+% myofibrils are arranged in parallel to the axis of the cell, resulting in
+% transverse or oblique striations observable at the level of the light
+% microscope.
+
+\begin{enumerate}
+    \item Ca$^{2_+}$ (stoichiometry 2) binds with an \textit{Inactive Sarcomere
+        Protein Complex}
+    \item ATP (stoichiometry 2) associates with the bound "Ca$^{2_+}$ - \textit{Calcium
+        Sarcomere Protein Complex}"
+    \item The \textit{Myosyn Complex} acts as a catalyst in order to activate the
+        reaction that produces \textit{Inorganic Phosphate} and the "ADP - \textit{Calcium
+        Sarcomere Protein Complex}" bound
+    \item The ADP dissociates from the "Ca$^{2_+}$ - \textit{Sarcomere Protein Complex}"
+        bound, producing two units of ADP (stoichiometry 2)
+\end{enumerate}
+
+In particular, Ca$^{2_+}$, ATP, \textit{Inactive Sarcomere Protein Complex} and
+\textit{Myosyn Complex}  are inputs of the biochemical network (no reaction
+within the network produces these species), while Pi and ADP are outputs (no
+reaction within the network consumes these species).
+
+It's important to note that since the \textit{Myosyn Complex} is a catalyst (modifier) of 
+the reaction, it is not consumed in the reaction.
+
+Biochemical networks as presented in pathway databases are qualitative models, 
+they describe only the roles of species in reactions and the structure of the network.
+Other than the stoichiometries there are no informations about typical quantities of 
+species, reactions speeds, compartments sizes etc... 
+
+
+\begin{definition}[Biochemical network] 
+    A biochemical network $G$ is a tuple $(S, R, E, s)$ where 
+    \begin{itemize}
+        \item $S = U \cup X \cup Y$ is the set of species of the biochemical network 
+            \begin{itemize}
+                \item $U$ is the set of input species of the network
+                \item $X$ is the set of species which are neither inputs or outputs 
+                \item $Y$ is the set of output species of the network
+            \end{itemize}
+        \item $R$ is the set of reactions in the biochemical network
+        \item $E = E_\text{reactants} \cup E_\text{products} \cup
+            E_\text{modifiers}^+ \cup E_\text{modifiers}^- \subseteq S \times R
+            $ is the set of relations between species and reactions
+        \item $s : E_\text{reactants} \cup E_\text{products} \rightarrow \mathbb{N}_+$ is the stoichiometry of the species in the reaction
+    \end{itemize}
+\end{definition}
+
+The definition abstracts different reaction types. It also allows for a species to be
+have multiple roles in a reaction, since in the Reactome pathways database there 
+are some reactions in which, for example, modifiers are also inputs or outputs of the
+reaction. (TODO: reference cypher query or species)
+
+
+% \lstset{
+%     language=cypher,
+%     basicstyle=\ttfamily\small,
+%     keywordstyle=\color{blue},
+%     commentstyle=\itshape\color{green},
+%     stringstyle=\color{red},
+%     breaklines=true,
+%     numbers=left,
+%     numbersep=5pt,
+%     tabsize=2,
+%     frame=single
+% }
+%
+% \begin{lstlisting}[caption=Cypher Query Example, language=cypher]
+% MATCH (n:Person {name: "Alice"}) 
+% RETURN n.name, n.age
+% \end{lstlisting}
+
+\newpage
+
+\section{Dynamics of biochemical networks}
+
+Systems of ordinary differential equations (ODE) are one of the approaches used
+in order to describe the dynamic behaviour of biochemical networks
+\cite{Klipp16}.
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=.6\textwidth]{./images/hemoglobin.pdf}
+    \end{center}
+    % \includegraphics[]{./images/legend.png}
+    % (R-HSA-390522.3) 
+    % https://reactome.org/PathwayBrowser/#/R-HSA-390522&PATH=R-HSA-397014
+    \caption{
+        \textit{Hemoglobin A} binds O$_2$, releasing H$^+$ and CO$_2$, then
+        AQP1 acts as a catalyst and transports CO$_2$ from the cytosol to the
+        extracellular region
+        % TODO: species are different based on region
+        % TODO: define what cytosol is, maybe with a footnote
+        % TODO: cite 
+        % https://reactome.org/PathwayBrowser/#/R-HSA-1247673&SEL=R-HSA-1247668&PATH=R-HSA-382551,R-HSA-1480926
+        % \cite{ReactomeStriatedMuscleContraction}
+    }
+    \label{fig:hemoglobin}
+\end{figure}
+
+ Let $G = (S, R, E, s)$ be the biochemical network in Figure \ref{fig:hemoglobin}
+
+% TODO:  https://reactome.org/PathwayBrowser/#/R-HSA-1247673&PATH=R-HSA-382551,R-HSA-1480926
+% https://reactome.org/PathwayBrowser/#/R-HSA-1247673&SEL=R-HSA-1247668&PATH=R-HSA-382551,R-HSA-1480926
+
+\begin{itemize}
+    \item $S = U \cup X \cup Y$ where
+        \begin{itemize}
+            \item $U = \{\text{O}_2, \text{Hb}_1, \text{A}\}$ with Hb$_1$ and A being
+                respectively \textit{Hemoglobin A} before the dissociation and AQP1
+            \item $X = \{ \text{CO}_2^c \}$, with $\text{CO}_2^c$ being
+                $\text{CO}_2$ in the cytosol
+            \item $Y = \{ \text{Hb}_2, H^+, \text{CO}_2^e \}$ with
+                $\text{Hb}_2$ and $\text{CO}_2^e$ being respectively
+                \textit{Hemoglobin A} after the dissociation and $\text{CO}_2$
+                in the extracellular region
+        \end{itemize}
+
+    \item $R = \{R_1, R_2\}$ where $R_1$ and $R_2$ are respectively the
+        dissociation reaction and the transport reaction
+\end{itemize}
+
 
 \begin{center}
-\includegraphics[width=\linewidth]{./images/striated_muscle_contration.pdf}
-% \includegraphics[width=.1\linewidth]{./images/legend.pdf}
+$
+\begin{cases}
+    a \\
+    b \\
+\end{cases}
+$
 \end{center}
 
-Striated muscle contraction is a process whereby force is generated within striated muscle tissue, resulting in a change in muscle geometry, or in short, increased force being exerted on the tendons. Force generation involves a chemo-mechanical energy conversion step that is carried out by the actin/myosin complex activity, which generates force through ATP hydrolysis. Striated muscle is a type of muscle composed of myofibrils, containing repeating units called sarcomeres, in which the contractile myofibrils are arranged in parallel to the axis of the cell, resulting in transverse or oblique striations observable at the level of the light microscope.
-Here striated muscle contraction is represented on the basis of calcium binding to the troponin complex, which exposes the active sites of actin. Once the active sites of actin are exposed, the myosin complex bound to ADP can bind actin and the myosin head can pivot, pulling the thin actin and thick myosin filaments past one another. Once the myosin head pivots, ADP is ejected, a fresh ATP can be bound and the energy from the hydrolysis of ATP to ADP is channeled into kinetic energy by resetting the myosin head. With repeated rounds of this cycle the sarcomere containing the thin and thick filaments effectively shortens, forming the basis of muscle contraction.
 
-% (TODO: require photo of qualitative biological network with reactions, species, modifiers etc...
-% maybe take it from the reactome standard)
+\begin{definition}[Dynamic biochemical network]
+    Given a biochemical network $G = (S, R, E, s)$ let $D = (G, theta)$
+\end{definition}
 
-% https://reactome.org/PathwayBrowser/#/R-HSA-390522&PATH=R-HSA-397014
 
-% https://reactome.org/PathwayBrowser/#/R-HSA-9752946&PATH=R-HSA-9709957,R-HSA-381753 (olfactory)
+% #definition("biological network")[
+%     A biological network $G$ is a triple $(S, R, E, sigma)$ s.t.
+%     - $S = U union.sq X union.sq Y$ is the set of species of the biological
+%         network
+%         - $U$ is the set of input species
+%         - $X$ is the set of other species in the network
+%         - $Y$ is the set of output species
+%     - $R$ is the set of reactions in the biological network
+%     // - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"pos_modifier" union.sq E_"neg_modifier"$
+%     - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"modifier"$
+%         is a relationship between species and reactions
+%     - $sigma : E_"reactant" union E_"product" -> NN^1$
+% ]
 
-% augmenting / quantifying
-\section{Qualitative network models augmentation} % TODO: Contribution
 
-\subsection{Qualitative network models}
-TODO: here cite reactome, put in "notes" the UML used later for the query etc...
+% Systems of ordinary differential equations (ODE) are
+% probably the most frequently used approach to model
+% the static and dynamic behaviors of biochemical net­
+% works.
+% They employ continuous variable values
+% (mostly concentrations) and continuous time.
 
-\section{Outline} % TODO: Outline
+% \section{Qualitative network models augmentation} % TODO: Contribution
+% \section{Qualitative network models}
+% TODO: here cite reactome, put in "notes" the UML used later for the query etc...
+% \section{Outline} % TODO: Outline
+% TODO: rename in somthing like "finding virtual patients for a model"
 
-\chapter{Preliminaries}
+\chapter{Biological models}
+
 
 % - TODO: what is a species
 %
@@ -243,15 +453,65 @@ Reactome uses "ReactionLikeEvent" to refer to generic reactions (TODO: cite glos
 \end{itemize}
 \end{definition}
 
-\chapter{Quantitative model generation}
+% #definition("biological network")[
+%     A biological network $G$ is a triple $(S, R, E, sigma)$ s.t.
+%     - $S = U union.sq X union.sq Y$ is the set of species of the biological
+%         network
+%         - $U$ is the set of input species
+%         - $X$ is the set of other species in the network
+%         - $Y$ is the set of output species
+%     - $R$ is the set of reactions in the biological network
+%     // - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"pos_modifier" union.sq E_"neg_modifier"$
+%     - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"modifier"$
+%         is a relationship between species and reactions
+%     - $sigma : E_"reactant" union E_"product" -> NN^1$
+% ]
+
+% // Average quantities
+% //
+% // - $S' = S union { S_"avg" | s in S}$
+% // - $S' = G(S')$
+% // - $K: R -> RR_+^(|R|) = [10^(-6), 10^6]^(|R|)$
+% //
+% // // #pagebreak()
+% //
+% // // == Parametric problem definition (design?)
+% //
+% // - find $k$
+% //
+% // - subject to
+% //     - structural constraints
+% //         - partial order on $k$ due to
+% //             - fast/non fast reactions (TODO: as given by Reactome, but how?)
+% //             #logic[
+% //                 $
+% //                     & forall r_f, r_s space.en ( r_f in R_"fast" and r_s in R_"slow" ) -> r_f > r_s
+% //                 $
+% //             ]
+% //             - reaction modifiers (like above?)
+% //     - for all dynamics of environment
+% //         - avg concentration of species consistent to knowledge
+% //
+% //         $
+% //             & exists t_0 space.en forall t space.en forall s \
+% //             & quad (t > t_0 and s in S_"avg") -> s(t) in ["known range"]
+% //         $
 
 
-% TODO: neo4j, how does it work, how does the apoc module work, 
-% TODO: what is the performance of the query (depths: 2, 4, 8, 16, restart each time)
-% TODO: how big does it need to be
+
+% \chapter{Quantitative model generation}
+
+
 % TODO: number of species, reactions and parameters in the network
 
 \section{Reachability}
+
+Given a set of target species, a set of constraints on the target species
+(constraints which model a scenario that could present, for example, in a
+disease) and by taking into account all the reactions within a set target
+pathways that lead to the production, both directly and indirectly, of the
+target species, the goal is to find a subset of virtual patients for the
+described scenario.
 
 \section{Scenario definition}
 
@@ -280,30 +540,101 @@ reachability you need a definition of a network)
 (as per figure ... of UML etc...)
 }
 
-\chapter{Satisfiability problem definition}
+\section{lll}
 
-\chapter{Optimization architecture}
+\section{Satisfiability problem definition}
+
+TODO: biochemical network $\rightarrow$ biochemical network with dynamics
+$\rightarrow$ satisfiability problem $\rightarrow$ optimization problem
+
+\begin{definition}[Biological model satisfiability problem]
+    Given a dynamic biochemical network $D = (S, R, E, s)$ let 
+    \begin{itemize}
+        \item $\mathcal{S} = \{C_s | s \in S\}$
+        \item $\mathcal{S}_\text{avg} = \{C_\text{avg} | s \in S\}$
+        \item ll
+    \end{itemize}
+\end{definition}
+
+% #definition("constraint problem on a biological model")[
+%     Given a model $G$ with target species $S_T$ and target pathways $P_T$ let
+%     the following be a constraint problem
+%
+%
+%     - $k : R -> RR^(|R|)$ // k is an assignement of the constants of the reaction, where |R| is the number of constants
+%
+%     *find* $k$
+%     *subject to*
+%     - partial order on $k$ from the structure of the graph
+%     - partial order on the quantities
+%     - constraint on enzymes such that
+%         $
+%             E + S <->^(k_1, k_(-1)) E S ->^(k_2) E + P
+%         $
+%     $
+%         k_1, k_(-1) >> k_2
+%     $
+%
+%     - for all dynamics of the environment
+%         - average concentration of species consistent to knowledge
+%         $
+%             & exists t_0 space.en forall t space.en forall s \
+%             & quad (t > t_0 and s in S_"avg") -> s(t) in ["known range"]
+%         $
+%
+%     Environment: all possible cuts \
+%     // DO NOT EXPAND OVER IT
+%     we can have excluded species!
+% ]
+%
+% \section{}
+
+
+\chapter{Blackbox optimization architecture}
+
+
+% \begin{figure}
+%     \noindent\makebox[\textwidth]{
+%     \includegraphics[width=1.4\textwidth]{./images/orchestrator-worker.pdf}}
+%     \caption{TEST} 
+%     % \label{fig:reactome-uml}
+% \end{figure}
+
+% \begin{figure}
+%     \noindent\makebox[\textwidth]{
+%     \includegraphics[width=1.4\textwidth]{./images/orchestrator-worker.svg}}
+%     \caption{TEST} 
+%     % \label{fig:reactome-uml}
+% \end{figure}
+
+
+\section{Blackbox optimization}
+
+
+Given a function $f : X \rightarrow Y$, which is expensive to compute, and an
+optimization problem of the type $\argmin_{x \in X} f(x)$ is a blackbox optimization
+problem if no information about the derivative of $f$ 
+
+% When analyzing the scalability of a parallel algorithm on a HPC cluster, 
+% an interesting problem is the one of trying to predict how would the 
+% algorithm scale on a cluster with a higher degree of parallelism compared 
+% to the one available for experiments.
+% This document presents one possible way to make this kind of analysis 
+% when the computation is asynchronous and the sequence of values in 
+% the computation depends on the state of an orchestrator.
+% OpenBox, a system design for generalized black-box optimization [1], will 
+% be the main case study for this type of systems.
 
 % TODO: optimization architecture
-
-When analyzing the scalability of a parallel algorithm on a HPC cluster, 
-an interesting problem is the one of trying to predict how would the 
-algorithm scale on a cluster with a higher degree of parallelism compared 
-to the one available for experiments.
-This document presents one possible way to make this kind of analysis 
-when the computation is asynchronous and the sequence of values in 
-the computation depends on the state of an orchestrator.
-OpenBox, a system design for generalized black-box optimization [1], will 
-be the main case study for this type of systems.
 
 \section{OpenBox}
 
 OpenBox is an efficient open-source system designed for solving gener­
 alized black-box optimization (BBO) problems. It can be used either as 
-a Standalone python package or Online BBO service [1].
+a Standalone python package or Online BBO service \cite{li2021openbox}.
 
 
-\section{Orchestrator Worker infrastructure}
+\section{Orchestrator-worker infrastructure}
 
 OpenBox is an efficient open-source system designed for solving generalized
 black-box optimization (BBO) problems. It can be used either as a Standalone
@@ -324,6 +655,171 @@ subject of the analysis @open-box-automatic-algorithm-selection.
 \chapter{Experiments}
 
 
+\chapter{Appendix}
+
+\appendix
+
+\section{Neo4j Graph databse}
+
+Neo4j is a native graph database, which means that it implements a true graph
+model all the way down to the storage level. Instead of using a "graph
+abstraction" on top of another technology, the data is stored in Neo4j in the
+same way you may whiteboard your ideas.
+
+https://neo4j.com/docs/getting-started/whats-neo4j/
+
+% TODO: neo4j, how does it work, how does the apoc module work, 
+% TODO: log some  possible scenario queries, do different max depths on it
+
+\section{Reactome}
+
+\begin{figure}
+    \noindent\makebox[\textwidth]{
+    \includegraphics[width=1.4\textwidth]{./images/reactome-uml.pdf}}
+    % TODO built using the DatabaseObject reference
+    \caption{UML model of a portion of the Reactome database} 
+    \label{fig:reactome-uml}
+\end{figure}
+
+\begin{figure}
+    \noindent\makebox[\textwidth]{
+    \includegraphics[width=1.4\textwidth]{./images/biological-scenario-definition.pdf}}
+    \label{fig:biological-scenario-definition-uml}
+\end{figure}
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=.7\linewidth]{./images/muscle-contraction-hierarchy.pdf}
+    \end{center}
+    \caption{Muscle contraction pathway hierarchy \cite{ReactomeStriatedMuscleContraction}}
+    \label{fig:striated-muscle-contraction-hierarchy}
+\end{figure}
+
+\begin{figure}
+    \begin{lstlisting}
+    MATCH
+    path =
+        (reactionLikeEvent:ReactionLikeEvent)-[:catalystActivity]->
+        (:CatalystActivity)-[:physicalEntity]->
+        (physicalEntity:PhysicalEntity)
+    WHERE
+    EXISTS {
+        MATCH (reactionLikeEvent)-[:input]->(physicalEntity)
+    }
+    RETURN COUNT(DISTINCT path)
+    \end{lstlisting}
+    \label{lst:modifiers-are-also-inputs}
+\end{figure}
+
+% \begin{center}
+%     \includegraphics[width=\linewidth]{./images/biological-scenario-definition.pdf}
+% \end{center}
+
+
+% == CatalystActivity
+%
+% The role of #logic[PhysicalEntity] in #logic[_catalyst_activity_entity_] has
+% multiplicity #logic[0..\*] because _"If a #logic[PhysicalEntity] can enable
+% multiple molecular functions, a separate #logic[CatalystActivity] instance is
+% created for each"_ #ref(<data-model-glossary>, supplement: [Page 5]).
+%
+% An additional constraint is required for active units, because _"If the
+% #logic[PhysicalEntity] is a #logic[Complex] and a component of the complex
+% mediates the molecular function, that component should be identified as the
+% active unit of the #logic[CatalystActivity]."_ #ref(
+%     <data-model-glossary>,
+%     supplement: [Page 5],
+% )
+%
+% // TODO: does it expand to multiple level complexes?
+%
+% #constraint(
+%     highlight(`C.CatalystActivity.active_unit_is_component_of_complex`),
+%     ```
+%     forall catalyst_activity, complex, complex_component
+%         (
+%             CatalystActivity(catalyst_activity) and
+%             Complex(complex) and
+%             PhysicalEntity(complex_component) and
+%             catalyst_activity_entity(catalyst_activity, complex) and
+%             catalyst_activity_active_unit(
+%                 catalyst_activity,
+%                 complex_component
+%             )
+%         ) ->
+%             complex_has_component_entity(complex, complex_component)
+%     ```,
+% )
+%
+% == Compartment
+%
+% // #TODO[move this information to the #logic[_compartment_entity_] association, or
+% //     to #logic[PreferredCompartmentForSimulation]]
+%
+% The #logic[Compartment] class has some quirks. In Reactome, the
+% #logic[Compartment]'s role in the #logic[_compartment_entity_] association has
+% multiplicity #logic[0..\*]. The problem is that the SBML model requires
+% #logic[1..1] multiplicity for this association to be simulated.
+%
+% In Reactome there are currently (TODO: version??) 19 physical entities which
+% don't have a compartment (see queries/helper.cypher), so this can be easily
+% solved by just adding a *default compartment* to the SBML model to which these
+% entities map to.
+%
+% On the other hand there are 14046 entities which have multiple compartments
+% (TODO: how many compartments has each exactly?), so the easiest choice right now
+% is to just pick any of them. For this reason the
+%
+%
+% // TODO: actual model requires 1..1 compartments for PhysicalEntity
+% //
+% // - if no compartment is present just use a default one
+% // - if multiple compartments are present use whichever you want (for now)
+%
+% // == DatabaseObjectWithStableId
+% //
+% // #constraint(
+% //     [C.DatabaseObjectWithStableId.either_database_id_or_id_is_defined],
+% //     ```
+% //     forall object
+% //         DatabaseObjectWithStableId(object) ->
+% //             exists id
+% //                 database_id(object, id) or id(object, id)
+% //     ```,
+% // )
+%
+% == Pathway
+%
+% The instances of #logic[Pathway] are organized hierarchically, i.e. all the
+% signaling pathways are collected under the Signal Transduction top level
+% #logic[Pathway] (#logic[StableIdVersion] R-HSA-162582.13). This allows to easily
+% extract a subset of reactions by specifying the _target pathways_ in a model and
+% taking into consideration only the reactions which are included, both directly
+% or indirectly, in that pathway (see the #logic[included_reactions()] operation).
+%
+% There are about 34 top level pathways.
+%
+% #operation(
+%     `included_reactions`,
+%     type: `ReactionLikeEvent [0..*]`,
+%     // prec: ```
+%     // ```,
+%     postconditions: ```
+%     result =
+%         { reaction |
+%             ReactionLikeEvent(reaction) and
+%             pathway_has_event(this, reaction) }
+%         $union$
+%         { reaction | exists pathway
+%             Pathway(pathway) and
+%             pathway_has_event(this, pathway) and
+%             #included_reactions(pathway, reaction) }
+%     ```,
+% )
+
+
+% TODO: what is the performance of the query (depths: 2, 4, 8, 16, restart each time)
+% TODO: how big does it need to be
 
 
 
@@ -332,8 +828,151 @@ subject of the analysis @open-box-automatic-algorithm-selection.
 
 
 
+\section{SBML simulation with Roadrunner}
 
 
+
+\section{HPC Cluster emulation with Docker Compose}
+
+
+% = OpenBox on the Slurm Workload Manager
+%
+% The HPC cluster at the Computer Science Department has some restrictions in
+% place, as it's used by many different teams / students and no single user can
+% request the indefinite usage of the whole cluster for a single job (jobs have a
+% time limit of 6, 24 or 72 hours based on permissions and resoruces required).
+%
+% // TODO: somehow store the OpenBox model of a job
+% // TODO: test both "students" and "multicore" partition to see which is more convenient
+% The goals of this section are to
+% - be able to run an OpenBox throught *multiple sessions*
+% - run *multiple smaller jobs* to increase *fairness* among users, instead of
+%     running a single big job for the whole simulation
+% - provide a simple framework that can be used *locally to simulate* executions
+%     on the cluster
+%
+% == Analysis
+%
+% In order to use OpenBox on the cluster in different sessions, it's a good idea
+% to store the results of the simulations in a database (i.e. PostgreSQL) to
+% retrieve the data of different session for an overall analysis.
+%
+% // #page(
+% //     flipped: true,
+% //     width: auto,
+% //     height: auto,
+% //     align(center + horizon, image("docs-biological-scenario-definition.svg")),
+% // )
+% #box(inset: (y: 5pt), align(center, image("./docs-openbox-jobs.svg")))
+%
+% === Data types specification
+%
+% #logic[
+%     `SlurmJobId = Integer >= 1` \
+%     `String1 = String` matching regex ```js /^\S$|^\S.*\S$/```
+% ]
+%
+% #pagebreak()
+%
+% === Classes specification
+%
+% ==== Job
+%
+% #constraint(
+%     highlight(`C.Job.all_parameters_are_instantiated`),
+%     ```
+%     forall job, blackbox, parameter
+%       (
+%         Job(job) and
+%         Blackbox(blackbox) and
+%         Parameter(parameter) and
+%         blackbox_job(blackbox, job) and
+%         blackbox_parameter(blackbox, parameter)
+%       ) ->
+%         job_parameter(job, parameter)
+%     ```,
+% )
+%
+% #constraint(
+%     highlight(`C.Job.continuity_1`),
+%     ```
+%     forall job, submit_time, start_time
+%       (
+%         Job(job) and
+%         #submit_time(job, submit_time) and
+%         #start_time(job, start_time)
+%       ) ->
+%         submit_time <= start_time
+%     ```,
+% )
+%
+% #constraint(
+%     highlight(`C.Job.continuity_2`),
+%     ```
+%     forall job, start_time, end_time
+%       (
+%         Job(job) and
+%         #start_time(job, start_time) and
+%         #end_time(job, end_time)
+%       ) ->
+%         start_time <= end_time
+%     ```,
+% )
+%
+% #pagebreak()
+%
+% == Implementation
+%
+% Diagram restructuration for PostgreSQL. The SQL code is available in the
+% `migration.sql` file.
+%
+% #box(inset: (y: 5pt), align(
+%     center,
+%     image("./docs-openbox-jobs-restructuration.svg"),
+% ))
+%
+% === Data types definitions
+%
+% // TODO: I could just use a serial id, but it is nice to have the job_id that can be generated only by slurm, so one can't add a "fake job"
+% ```sql
+% CREATE DOMAIN String1 AS varchar CHECK(value ~ '^\S$|^\S.*\S$');
+% CREATE DOMAIN SlurmJobId AS integer CHECK(value >= 1);
+% ```
+%
+% === Additional constraints
+%
+% ==== Job
+%
+% #constraint(
+%     highlight(`C.Job.end_implies_job_was_scheduled`),
+%     ```
+%     forall job, end_time
+%       (Job(job) and #end_time(job, end_time)) ->
+%         exists start_time #start_time(job, start_time)
+%     ```,
+% )
+%
+% A result is present if and only if the job ended
+%
+% #constraint(
+%     highlight(`C.Job.result_only_on_end_time`),
+%     ```
+%     forall job, job_result
+%       (Job(job) and #result(job, job_result)) ->
+%         exists end_time #end_time(job, end_time)
+%     ```,
+% )
+%
+% #constraint(
+%     highlight(`C.Job.end_time_only_on_result`),
+%     ```
+%     forall job, end_time
+%       (Job(job) and #end_time(job, end_time)) ->
+%         exists job_result #result(job, job_result)
+%     ```,
+% )
+%
+% #page(bibliography("bibliography.bib"))
 
 
 
@@ -525,10 +1164,8 @@ subject of the analysis @open-box-automatic-algorithm-selection.
 % kjjlkjlk
 % kjlkjlkj
 %
-% \printbibliography
+\printbibliography
 %
-\end{document}
-
 % "Don’t be overwise; fling yourself straight into life, without deliberation;
 % don’t be afraid - the flood will bear you to the bank and set you safe on
 % your feet again." Fyodor Dostoevsky
@@ -549,4 +1186,158 @@ subject of the analysis @open-box-automatic-algorithm-selection.
 % In \hyperref[chap:5]{Chapter~\ref*{chap:5}} we  briefly present...
 %
 % \chapter{Background and Related Work}
+
+\end{document}
+
+% Boolean networks is a well-established formalism for modelling biological systems. A vital challenge for analyzing a Boolean network is to identify all the attractors.
+% This becomes more challenging for large asynchronous Boolean networks, due to the asynchronous scheme.
+% Existing methods are prohibited due to the well-known state-space explosion problem in large Boolean networks. 
+% In this paper, we tackle this challenge by proposing a SCC-based decomposition method. We prove the correctness of our proposed method and demonstrate its efficiency with two real-life biological networks.
+%
+%
+% - ME VERSION: We want to find the attractors, in large asynchronous networks is hard (State Space explosion, nice), so we decompose the network in SCC (Strongly Connected Components) 
+
+
+% TODO: On ATTRACTORS
+
+% A *GRN* _(Genere Regulatory Network)_ is a collection of molecular regulators that interact with each other and with other substances in the cell to govern the gene expression levels of mRNA and proteins which, in turn, determine the function of the cell.
+%
+% A *molecular regulator*  is a molecule that controls the activity, expression, or function of other molecules or processes within a cell or organism.
+%
+% An attractor of a biological system is a set of the system’s states satisfying that any two states in this set can be reached from each other and the system remains in this set until some external stimulus pushes the system out of it.
+%
+% Attractors are hypothesised to characterise cellular phenotypes or to correspond to functional cellular states such as 
+% - proliferation (the process of cell growth and division, resulting in an increase in the number of cells)
+% - apoptosis (the process of programmed cell death, in which a cell initiates self-destructions; necrosis is a 'messy' uncontrolled cell death)
+% - differentiation (the process where a less specialized cell develops into a more specialized cell type, acquiring distinct characteristics and functions)
+% - homeostasis (a finely tuned balancing act involving the interplay of various cellular processes such as oxidative phosphorylation, autophagy protein ubiquitination, and sumoylation. These pathways work in harmony to ensure cells function optimally, adapting to changes and stressors)
+
+
+% TODO: on attractor detection
+
+% 1. Enumeration
+%     - In the early 2000s, an enumeration and simulation method has been proposed. 
+%     - The attractors are detected by running simulation from each of the possible states. 
+%     - This method is largely restricted by the network size since the required computational time grows exponentially with the number of nodes.
+% 2. Irons 
+%     - 2006 method to handle BNs with maximum 50 nodes
+% 3. BDDs (Binary Decision Diagrams)
+%     - Basically decision trees
+%     - It has efficient operations to compute forward and backwrd reachable states
+%     - To identify attractos it's enough to identify the fix point set in the corrisponding transition system
+% 4. SAT solvers
+%     - The transition relation of the BN is unfolded for a bounded number of steps, and it's presented as a propositional formula
+%     - The process is repeated for bigger bounds until no valid path can befound
+%     - It depdends on the number of nodes in the BN and the number of unfolding steps required
+% 5. BNs decomposition
+%     - The main idea is to decmpose a large BN into small components based on its structure, detect attractors in the small compoments, and then recover the attractors of the original BN 
+% 6. other methods for large networks (cannot guarantee to find all attractors)
+%     - approximation methods
+%     - reduction methods
+%     - methods designed for specific types of attractors
+
+
+
+% An attractor of a BN is a set of states satisfying that any state in the set can be reached from any other state in this set and no state in this set can reach any other state that is not in this set.
+%
+% Attractors are hypothesised to characterise cellular phenotypes.
+%
+% We refer to an attractor togeher with its state transition relation as an attractor system (like an STS).
+% - its state are called attractor states
+% - it is not guaranteed that an asynchronous attractor is a loop
+% - in asynchronous systems the attractor might inculde serveral loops
+%
+% Types of attractors:
+% - singleton attractor (a selfloop)
+% - simple loop
+% - complex loop
+
+% TODO:
+% # What question is the model supposed to answer?
+% # Is it built to explain a surprising observation?
+% # Is it built to relate separate observations with each other and with previous knowledge?
+% # Is it built to make predictions, for example, about the effect of specific perturbations?
+
+
+
+% - proteomics: studio di tutte le proteine prodotte o modificate da un organismo, sistema biologico o cellula in un determinato momento
+% - REACTOME: Neo4j, graph database, Cypher
+% - REACTOME: [MySQL dump](https://reactome.org/download-data)
+% - [REACTOM BNs](https://reactome.org/docs/training/ReactomeFIVizapp.pdf#:~:text=The%20main%20features%20of%20the%20plug%2Din%20are,edge%20in%20the%20the%20network%20view%20panel.&text=The%20main%20features%20of%20the%20plug%2Din%20are,edge%20in%20the%20the%20network%20view%20panel.)
+% - BIOMARCATORE ONCOLOGICO: un qualche tipo di sostanza che può essere rilevata ed è associata alla presenza / crescita di un tumore 
+% - MENSTRUAL BLEEDING: excessively havey flow, abnormal bleeding
+% - PATHWAY ENDOCRINOLOGICO: si riferisce al sistema di comunicazione e regolazione all'interno del corpo che coinvolge gli ormoni, messaggeri chimici prodotti dalle ghiandole endocrine. Questi ormoni viaggiano nel sangue verso le cellule bersaglio, dove interagiscono con recettori specifici per influenzare le funzioni cellulari
+% - NEFROLOGICO: è la branca della medicina che si occupa dello studio, della diagnosi e del trattamento delle malattie dei reni e delle vie urinarie
+% - ONCOLOGICO: si riferisce a tutto ciò che è relativo ai tumori, sia benigni che maligni, e alla branca della medicina che li studia, l'oncologia
+
+% TODO: NOTE2
+
+% vincoli
+%     - concentrazione media specie più o meno quella nota
+%     - vincoli di ordinamento per cui una reazione è più veloce di un'altra è soddisfatta
+%     - per tutti gli scenari di input ai morsetti
+%     - system model checking
+%
+%
+% - DONE: articolo su statistical model checking
+% - TODO: fast Reaction? How to check if reaciton is fast?
+% - TODO: modificatori, catalisi? Come capire quali sono?
+% - TODO: isProduct invece di output? (indice opposto)
+% - TODO: ratio degli scenari in cui finisce
+%
+% - NONE! TODO: apricopt add nevergrad + OpenAI
+% - TODO: casi particolari tPA (PLAT)
+% - riccardo curcio OpenAI tool
+% - NOMAD: mesh semplificata del problem
+%
+% - NONE! TODO: estendiamo apricopt (ottimizzatore black box OpenAI)
+% - TODO:
+%     - ottimizzatore BBO fa search K
+%         - vincoli strutturali (di dominio)
+%         - la probabilità K fa fallire X < epsilon
+%     - Env + modello SBML simulatore
+%     - la BBO del simulatore è il tuo EA
+%
+% - NOMAD ad ogni chiamata del BBO vuole sia i vincoli strutturali sia simulabili
+%
+% - NONE! TODO: aggiungere tool BBO a docker-ai-tools
+% https://en.wikipedia.org/wiki/Law_of_mass_action
+%
+% # note
+%
+% - Estendere EAA con nuovo algoritmo sistem model checking (estendi)
+% - Nuovo ottimizzatore OpenAI su apricopt
+%
+%
+%
+% # note 2
+%
+% - Generare modello SBML da Reactome
+% - simulatore AMICI (+ apricopt se serve)
+%
+% VEDERE SE vincolo 2 rf < rs sia così
+%
+% - tenere modello in RAM e simulare tante volte cambiando parametri
+% - biouml
+% - vettore parametri
+% - vettore traiettorie
+% - multiprocess Pool Python
+%
+% TODO:
+% - isola reactome (sceglie isola + stacca frontiera)
+% - generare modello SBML quantitativo eq. diff. parametrico nelle costanti
+%
+% - template che genera l'equazione sia modificabile (law of mass action)
+% - utente, quando vuole generare il modello, può decidere quale template usare
+% - idealmente alcune reazioni modellate con una certa legge, e altre reazioni con altre (ma sembra inverosimile che per ogni reazione si conosce il template più opportuno)
+% - template oggetti di una classe, data una reazione qualitativa, genera un'equazione differenziale parametrica nelle costanti cinetiche (velocità)
+
+% TODO: this is a macroscopical + phenomenological approach (compared to microscopical simulation of single components)
+
+
+% TODO: https://sbgn.github.io/ for images
+% TODO: MIRIAM could be useful, it defines standards for different types of systems biology models
+% TODO: the hierarhical structure of reactome, use here, describe in appendix
+
+
 

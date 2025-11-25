@@ -1,3 +1,24 @@
+Biological systems such as organisms, cells, or biomolecules 
+are highly organized in their structure and function,  \cite{Klipp16} 
+[structure which is a consequence of evolution]. 
+[Such structures can help study the and compare biological functions of  
+different organisms]. [In order to understand, formalize and abstract these structures 
+some kind of modeling is needed, be it mathematical or not (what not?)].
+
+[The problem is the one of data integration, i.e. partial information in distributed
+databases is needed]. 
+[One such data source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
+[The goal with this work is to use qualitative data in the Reactome database to generate 
+quantitative models, and use BBO (cite something) techinques to "validate" 
+(validate is not good, find something else) these models]
+
+[Validating complex biological models is a computationally intensive task (cite something)
+thus HPC clusters are required in order. ] 
+{Such clusters may not always be fully available 
+(i.e. there are multiple users and multiple experiments running on the cluster +
+there are some limits on job running times),
+so in order to better distribute the load of the validation task some infrastructure
+work is needed.}
 https://sourabhgupta.com/downloads/s_databank/bio04-Systems%20Biology_%20A%20Textbook.pdf
 https://catalog.nlm.nih.gov/discovery/fulldisplay/alma9915128543406676/01NLM_INST:01NLM_INST
 https://www.wiley.com/en-us/Systems+Biology%3A+A+Textbook%2C+2nd+Edition-p-9783527336364
