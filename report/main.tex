@@ -1,0 +1,552 @@
+% !TeX encoding = UTF-8
+% !TeX program = pdflatex
+\documentclass[english, noexaminfo, a4paper, binding=0.6cm, oneside]{sapthesis}
+
+\usepackage[utf8]{inputenc}
+\usepackage{indentfirst}
+\usepackage{microtype}
+\usepackage{colortbl}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{lettrine}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[nottoc, notlof, notlot]{tocbibind}
+\usepackage{microtype}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsfonts}
+\usepackage[hidelinks]{hyperref}
+\usepackage[nameinlink]{cleveref}
+\usepackage{hyperref}
+\usepackage{algorithmicx}
+\usepackage[noend]{algpseudocode}
+\usepackage{algorithm}
+\usepackage{biblatex}
+\usepackage{graphicx}
+
+\definecolor{lightgray}{gray}{0.9} % 0.9 is very light, 0.1 is very dark
+\linespread{0.9}
+\hypersetup{
+    hyperfootnotes=true,			
+    bookmarks=true,			
+    colorlinks=true,
+    linkcolor=red,
+    linktoc=page,
+    anchorcolor=black,
+    citecolor=red,
+    urlcolor=blue,
+    pdftitle={AI-driven analysis of molecular pathways},
+    pdfauthor={Ionuț Cicio},
+    pdfkeywords={thesis, sapienza, roma, university}
+}
+
+\title{AI-driven analysis of molecular pathways}
+\author{Ionuț Cicio}
+\IDnumber{2048752}
+\course{Informatica}
+\courseorganizer{Facolt\`a di Ingegneria dell'informazione, informatica e statistica}
+\submitdate{2024/2025}
+\copyyear{2025}
+\advisor{Prof. Mancini}
+\coadvisor{Prof. Tronci}
+\authoremail{cicio.2048752@studenti.uniroma1.it}
+%\examdate{xx December 2025}
+%\examiner{Prof. ...} \examiner{Prof. ...} \examiner{Prof. ...}  \examiner{Prof. ...} % \examiner{Prof. ...} \examiner{Prof. ...}  \examiner{Prof. ...} 
+
+%we refer to http://ctan.mirrorcatalogs.com/macros/latex/contrib/sapthesis/sapthesis-doc.pdf for an exhaustive description of the sapthesis documentclass.
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+% --- Doom One Light Color Definitions ---
+% (Add this to your preamble)
+\definecolor{doomBack}{RGB}{250, 250, 250}     % #fafafa
+\definecolor{doomComment}{RGB}{156, 156, 156}   % #9c9c9c
+\definecolor{doomKeyword}{RGB}{198, 120, 221}   % #c678dd (Purple/Magenta)
+\definecolor{doomString}{RGB}{152, 195, 121}    % #98c379 (Green)
+\definecolor{doomNumber}{RGB}{209, 154, 102}    % #d19a66 (Orange)
+\definecolor{doomDefault}{RGB}{77, 77, 77}      % #4d4d4d (Default Text)
+% Setup section. -----------------------------------|
+\crefname{listing}{listato}{listati}
+\Crefname{listing}{Listato}{Listati}
+\crefname{lstlisting}{listato}{listati}
+\Crefname{lstlisting}{Listato}{Listati}
+
+\crefname{section}{sezione}{sezioni}
+\Crefname{section}{Sezione}{Sezioni}
+\crefname{chapter}{capitolo}{capitoli}
+\Crefname{chapter}{Capitolo}{Capitoli}
+\lstset{
+basicstyle= % <-- Add this for the rest of the text
+}
+\lstdefinestyle{pythonstyle}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{doomBack}, 
+  commentstyle=\color{doomComment},
+  keywordstyle=\color{doomKeyword},
+  numberstyle=\tiny\color{doomNumber},
+  stringstyle=\color{doomString},
+  basicstyle=\ttfamily\footnotesize\color{doomDefault},
+  breakatwhitespace=false,         
+  breaklines=true,                 
+  captionpos=b,                    
+  keepspaces=true,                 
+  numbers=left,                    
+  numbersep=8pt,                  
+  showspaces=false,                
+  showstringspaces=false,
+  showtabs=false,                  
+  tabsize=2
+}
+
+% Stile terminale (bash/sh)
+\lstdefinestyle{termstyle}{
+  language=bash,
+  basicstyle=\ttfamily\small\color{codegreen},
+  backgroundcolor=\color{backcolour},
+  showstringspaces=false,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  upquote=true,
+  frame=single,
+  rulecolor=\color{black},
+  numbersep=8pt,
+  numbers=none,
+  captionpos=b
+}
+% Some typical keyword
+\lstdefinelanguage{mybash}[]{bash}{
+  morekeywords={sudo,pip,python,python3,git,make,cmake,virtualenv,conda}
+}
+\lstdefinestyle{termstyle}{
+  language=mybash,
+  basicstyle=\ttfamily\small\color{codegreen},
+  backgroundcolor=\color{backcolour},
+  showstringspaces=false, breaklines=true,
+  columns=fullflexible, keepspaces=true, upquote=true,
+  frame=single, rulecolor=\color{black}, numbers=none, captionpos=b
+}
+
+\addbibresource{bibliography.bib}
+% \setcitestyle{authoryear,open={(},close={)}} % Set citation style
+
+\newcounter{definition}
+\renewcommand{\thedefinition}{\arabic{definition}}
+
+\newenvironment{definition}[1][]{
+    \refstepcounter{definition}
+    \par\noindent\linebreak
+    \textbf{Definition \thedefinition } (#1).}{
+    \par\noindent
+}
+
+\begin{document}
+
+\frontmatter
+
+\maketitle
+
+\begin{abstract} \end{abstract}
+
+\tableofcontents
+
+\mainmatter
+
+\chapter{Introduction}
+
+Biological systems such as organisms, cells, or biomolecules 
+are highly organized in their structure and function, \cite{Klipp16}.
+% [structure which is a consequence of evolution]. 
+[Such structures can help study the and compare biological functions of  
+different organisms]. [In order to understand, formalize and abstract these structures 
+some kind of modeling is needed, be it mathematical or not (what not?)].
+
+
+In this report is presented a proof of concept which generates biological models by using the concept 
+of reachability and databases of biochemical reactions.
+
+
+[A fundamental component of bioinformatics is data integration, (a problem is) i.e. partial information in distributed databases is needed]. 
+[One such data source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
+REACTOME is an open-source, open access, manually curated and peer-reviewed pathway database.
+[The goal with this work is to use qualitative data in the Reactome database to generate 
+quantitative models, and use BBO (cite something) techinques to "validate" 
+(validate is not good, find something else) these models]
+
+[Validating complex biological models is a computationally intensive task (cite something)
+thus HPC clusters are required in order. ] 
+{Such clusters may not always be fully available 
+(i.e. there are multiple users and multiple experiments running on the cluster +
+there are some limits on job running times),
+so in order to better distribute the load of the validation task some infrastructure
+work is needed.}
+
+\newpage
+
+\section{Computational modeling of biological systems} % TODO: Motivation
+
+% []
+
+\begin{center}
+\includegraphics[width=\linewidth]{./images/striated_muscle_contration.pdf}
+% \includegraphics[width=.1\linewidth]{./images/legend.pdf}
+\end{center}
+
+Striated muscle contraction is a process whereby force is generated within striated muscle tissue, resulting in a change in muscle geometry, or in short, increased force being exerted on the tendons. Force generation involves a chemo-mechanical energy conversion step that is carried out by the actin/myosin complex activity, which generates force through ATP hydrolysis. Striated muscle is a type of muscle composed of myofibrils, containing repeating units called sarcomeres, in which the contractile myofibrils are arranged in parallel to the axis of the cell, resulting in transverse or oblique striations observable at the level of the light microscope.
+Here striated muscle contraction is represented on the basis of calcium binding to the troponin complex, which exposes the active sites of actin. Once the active sites of actin are exposed, the myosin complex bound to ADP can bind actin and the myosin head can pivot, pulling the thin actin and thick myosin filaments past one another. Once the myosin head pivots, ADP is ejected, a fresh ATP can be bound and the energy from the hydrolysis of ATP to ADP is channeled into kinetic energy by resetting the myosin head. With repeated rounds of this cycle the sarcomere containing the thin and thick filaments effectively shortens, forming the basis of muscle contraction.
+
+% (TODO: require photo of qualitative biological network with reactions, species, modifiers etc...
+% maybe take it from the reactome standard)
+
+% https://reactome.org/PathwayBrowser/#/R-HSA-390522&PATH=R-HSA-397014
+
+% https://reactome.org/PathwayBrowser/#/R-HSA-9752946&PATH=R-HSA-9709957,R-HSA-381753 (olfactory)
+
+% augmenting / quantifying
+\section{Qualitative network models augmentation} % TODO: Contribution
+
+\subsection{Qualitative network models}
+TODO: here cite reactome, put in "notes" the UML used later for the query etc...
+
+\section{Outline} % TODO: Outline
+
+\chapter{Preliminaries}
+
+% - TODO: what is a species
+%
+% - TODO: what is a reaction
+%
+% - TODO: 
+
+We denote by $\mathbb{R}, \mathbb{R}_{0_{+}}, \mathbb{Z}, \mathbb{N}$ the sets of, respectively, real, non-
+negative real, integer, and non-negative integer numbers.
+
+The terms "physical entity" and "species" are used interchangibly in this document, since Reactome (TODO: cite reactome document model / glossary) uses "PhysicalEntity" to reference (TODO: biological species?) and SBML (TODO: cite SBML documentation) uses "Species".
+
+Reactome uses "ReactionLikeEvent" to refer to generic reactions (TODO: cite glossary and use glossary to tell different types of reactions)
+
+\begin{definition}[Biological network] A biological network $G$ is a tuple $(S, R, E, \sigma)$ where
+\begin{itemize}
+    \item $S = U \cup X \cup Y$ is the set of species of the biological network, where
+        \begin{itemize}
+            \item $U$ is the set of input species
+            \item $Y$ is the set of output species
+            \item $X$ is the set of other species in the network
+        \end{itemize}
+    \item $R$ is the set of reactions in the biological network
+    \item $E \subseteq S \times R$
+\end{itemize}
+\end{definition}
+
+\chapter{Quantitative model generation}
+
+
+% TODO: neo4j, how does it work, how does the apoc module work, 
+% TODO: what is the performance of the query (depths: 2, 4, 8, 16, restart each time)
+% TODO: how big does it need to be
+% TODO: number of species, reactions and parameters in the network
+
+\section{Reachability}
+
+\section{Scenario definition}
+
+(TODO: define what is an expansions, why do we need a scenario, etc...it might be important to study what a subsection which contains two specific species behaves)
+
+(TODO: define what is a Pathway, and what a Pathway is in terms of Reactome)
+
+(TODO: maybe do a chapter about Reactome, or something simpler before about the generation, maybe about "Reachability", for 
+reachability you need a definition of a network)
+
+
+\begin{definition}[Biological scenario]
+    A
+\end{definition} A scenario is defined by
+{   
+\begin{itemize}
+    \item a set of physical entities from which to start the expansions
+    \item a set ot pathways to which to limit (constraint?) reactions to
+    \item a max depth for recursion (/reachability) (TODO: a max depth in terms of nodes in the path, not in the number of reactions in the path, for that apoc is needed)
+
+    \item a set of physical entities to exclude from reachability
+
+    \item a partial order of the species 
+
+\end{itemize}
+(as per figure ... of UML etc...)
+}
+
+\chapter{Satisfiability problem definition}
+
+\chapter{Optimization architecture}
+
+% TODO: optimization architecture
+
+When analyzing the scalability of a parallel algorithm on a HPC cluster, 
+an interesting problem is the one of trying to predict how would the 
+algorithm scale on a cluster with a higher degree of parallelism compared 
+to the one available for experiments.
+This document presents one possible way to make this kind of analysis 
+when the computation is asynchronous and the sequence of values in 
+the computation depends on the state of an orchestrator.
+OpenBox, a system design for generalized black-box optimization [1], will 
+be the main case study for this type of systems.
+
+\section{OpenBox}
+
+OpenBox is an efficient open-source system designed for solving gener­
+alized black-box optimization (BBO) problems. It can be used either as 
+a Standalone python package or Online BBO service [1].
+
+
+\section{Orchestrator Worker infrastructure}
+
+OpenBox is an efficient open-source system designed for solving generalized
+black-box optimization (BBO) problems. It can be used either as a Standalone
+python package or Online BBO service @open-box.
+
+OpenBox has a great support for bayesian optimization, so that will be the main
+subject of the analysis @open-box-automatic-algorithm-selection.
+
+% Given a function $f: X -> Y$, which is expensive to compute, and an optimization
+% problem of the type $"argmin"_(x in X) space f(x)$, the OpenBox service acts as
+% an advisor which, when prompted, *suggests* the next point $x$ on which to
+% compute the value $f(x)$. When a `worker` computes $f(x)$ it sends OpenBox an
+% *observation*; each observation changes the state of OpenBox. When using the
+% OpenBox as Service, the _worker needs to actively ask for the points_.
+
+\section{Scalability analysis}
+
+\chapter{Experiments}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\newpage
+
+% % 268 words circa for introduction
+%
+% % TODO: check paper on boolean networks for stationary states
+% Steady states and attractors
+%
+% One consequence of evolution is the similarity of bio­
+% logical organisms of different species.
+%
+% allows for the use of model organisms and for the critical
+% transfer of insights gained from one cell type to other cell
+% types. Applications include, for example, prediction of
+% protein function from similarity, prediction of network
+% properties from optimality principles, reconstruction of
+% phylogenetic trees, or the identification of regulatory
+% DNA
+%
+% % TODO: we add 
+%
+% If we observe biological phenomena, we are confronted
+% with various complex processes that often cannot be
+% explained from first principles and the outcome of which
+% cannot reliably be foreseen from intuition. Even if general
+% biochemical principles are well established (e.g., the
+% central dogma of transcription and translation or the bio­
+% chemistry of enzyme-catalyzed reactions), the bio­ chemistry of individual molecules and systems is often
+% unknown and can vary considerably between species.
+% Experiments lead to biological hypotheses about individ­
+% ual processes, but it often remains unclear whether these
+% hypotheses can be combined into a larger coherent pic­
+% ture because it is often difficult to foresee the global
+% behavior of a complex system from knowledge of its
+% parts. Mathematical modeling and computer simulations
+% can help us to understand the internal nature and
+% dynamics of these processes and to arrive at predictions
+% about their future development and the effect of interac­
+% tions with the environment.
+%
+% In a broad sense, a model is an
+% abstract representation of objects or processes that
+% explains features of these objects or processes
+%
+% On the structure of biological systems
+%
+% % TODO: Having a model which is stable can help in studing situations in diseases etc...
+% % TODO: generally we want to find steady states, cite boolean networks paper
+% % TODO: this search explodes, i.e. steady states in boolean networks
+% % TODO: find a paper that says it's very hard to find assignemnts for variables etc.. (cite the same ones in the SMC paper, or something) 
+%
+% Therefore, stochastic algorithms must be used instead. Statistical
+% Model Checking (SMC) (Larsen and Legay, 2016) offers a wide range
+% of frameworks and probabilistic methods to analyze and verify large
+% models of complex systems. While these tools generally cannot provide
+% definite answers to verification problems, they can actually be applied
+% to real-world use-cases and generate approximations of Key Perfor-
+% mance Indicators (KPIs)
+%
+%
+% % The growing need for tools designed for the formal verification of
+% % complex systems faces a fundamental problem of scalability
+%
+% \begin{itemize}
+%     \item Solution algorithms and computer programs can be used independently of the concrete system. Modeling is cheap compared with experiments.
+%     \item Modeling can assist experimentation. With an adequate model, one may test different scenarios that are not accessible by experiment.
+%     \item One may follow time courses of compounds that cannot be measured in an experi ment. 
+%     \item One may impose perturbations that are not feasi­ ble in the real system.
+%     \item Model simulations can be repeated often and for many different conditions.
+%     \item Model results can often be presented in precise mathe matical terms that allow for generalization. 
+%     \item Finally, modeling allows for making well-founded and testable predictions.
+% \end{itemize}
+%
+% % \begin{itemize}
+% %     % \item Modeling drives conceptual clarification. It requires verbal hypotheses to be made specific and conceptually rigorous.
+% %     % \item Modeling highlights gaps in knowledge or understanding. During the process of model formulation, unspecified components or interactions have to be determined.
+% %     \item Modeling provides independence of the modeled object. 
+% %     \item Time and space may be stretched or compressed ad libitum.
+% %     \item Models exert by themselves no harm on animals or plants and help to reduce ethical problems in experi­ ments. They do not pollute the environment.
+% %     \item One may cause precise perturbations without directly changing other system components, which is usually impossible in real sys­ tems.
+% %     \item Model simulations can be repeated often and for many different conditions.
+% %     \item Model results can often be presented in precise mathe matical terms that allow for generalization. 
+% %     \item Graphical representation and visualization make it easier to understand the system.
+% %     \item Finally, modeling allows for making well-founded and testable predictions.
+% % \end{itemize}
+%
+% % \section{Computational modeling of biological systems} % TODO: Motivation
+% %
+% % % augmenting / quantifying
+% % \section{Qualitative network models augmentation} % TODO: Contribution
+% %
+% % \subsection{Qualitative network models}
+% % TODO: here cite reactome, put in "notes" the UML used later for the query etc...
+% %
+% % \section{Outline} % TODO: Outline
+% %
+% %
+% % % This article is organized as follows. Section 2 presents preliminaries
+% % % and discusses state-of-the-art SAs, with a special emphasis on EBStop
+% % % and AA. Section 3 defines the formal framework used throughout the
+% % % article. Section 4 and Section 5 describe EAA and our massively parallel
+% % % implementation, respectively. Section 6 is devoted to the experimental
+% % % analysis of our algorithm and parallel tool. Finally, Section 7 draws
+% % % conclusions and perspectives
+% %
+% % \begin{algorithm}
+% % \caption{Model generation}
+% % \begin{algorithmic}
+% % \Require $n \geq 0$
+% % \Ensure $y = x^n$
+% % \State $i \gets 10$
+% % \If{$i\geq 5$} 
+% %     \State $i \gets i-1$
+% % \Else
+% %     \If{$i\leq 3$}
+% %         \State $i \gets i+2$
+% %     \EndIf
+% % \EndIf 
+% % \end{algorithmic}
+% % \end{algorithm}
+% %
+% %
+% % \chapter{Preliminaries}
+% %
+% % We denote by $\mathbb{R}, \mathbb{R}_{0_{+}}, \mathbb{Z}, \mathbb{N}$ the sets of, respectively, real, non-
+% % negative real, integer, and non-negative integer numbers.
+% %
+% % $\theta \in [-20, 20]^{k}$
+% %
+% %
+% % % \section{On the usefulness of }
+% %
+% % \section{Computational modeling of biological systems}
+% %
+% % TODO: what is the general problem I want to solve?
+% %
+% % % \section{Qualitative biological networks}
+% %
+% % Given a set of target species, a set of constraints on the target species 
+% % (constraints which model a scenario that could present, for example, in a 
+% % disease) and by taking into account all the reactions within a set target 
+% % pathways that lead to the production, both directly and indirectly, of the 
+% % target species, the goal is to find a subset of virtual patients for the described 
+% % scenario.
+% %
+% %
+% % \begin{definition}[Biological network] A biological network $G$ is a tuple $(S, R, E, \sigma)$ where
+% % \begin{itemize}
+% %     \item $S = U \sqcup X \sqcup Y$ is the set of species of the biological network, where
+% %         \begin{itemize}
+% %             \item $U$ is the set of input species
+% %             \item $X$ is the set of other species in the network
+% %             \item $Y$ is the set of output species
+% %         \end{itemize}
+% %     \item $R$ is the set of reactions in the biological network
+% %     \item $E \subseteq S \times R$
+% % \end{itemize}
+% % \end{definition}
+% %
+% % \begin{definition}[Optimization problem]
+% % \end{definition}
+% %
+% % % \section{Qualitative}
+% %
+% % \chapter{Quantitative model generation}
+% %
+% % \chapter{Constraint satisfiability problem}
+% %
+% % \chapter{Parallelization}
+% %
+% % \chapter{Scalability analysis}
+% %
+% % \chapter{Experiments}
+% %
+%
+% % \section{}
+%
+% % \medskip
+%
+% jkjk
+% kjjlkjlk
+% kjlkjlkj
+%
+% \printbibliography
+%
+\end{document}
+
+% "Don’t be overwise; fling yourself straight into life, without deliberation;
+% don’t be afraid - the flood will bear you to the bank and set you safe on
+% your feet again." Fyodor Dostoevsky
+
+% \lettrine[lines=2, findent=3pt, nindent=0pt]{I}{}n the field of probabilistic  password guessing models...
+%
+% \bigskip
+% In \hyperref[chap:1]{Chapter~\ref*{chap:1}} we  briefly present...
+%
+% \bigskip
+% In \hyperref[chap:2]{Chapter~\ref*{chap:2}} we summarize...
+% \bigskip
+% In \hyperref[chap:3]{Chapter~\ref*{chap:3}} we  briefly present...
+%
+% \bigskip
+% In \hyperref[chap:4]{Chapter~\ref*{chap:4}} we summarize...
+% \bigskip
+% In \hyperref[chap:5]{Chapter~\ref*{chap:5}} we  briefly present...
+%
+% \chapter{Background and Related Work}
+

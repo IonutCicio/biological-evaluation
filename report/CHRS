@@ -1,0 +1,81 @@
+https://sourabhgupta.com/downloads/s_databank/bio04-Systems%20Biology_%20A%20Textbook.pdf
+https://catalog.nlm.nih.gov/discovery/fulldisplay/alma9915128543406676/01NLM_INST:01NLM_INST
+https://www.wiley.com/en-us/Systems+Biology%3A+A+Textbook%2C+2nd+Edition-p-9783527336364
+Klipp2016SystemsBiology
+
+% https://reactome.org/cite
+
+https://github.com/PKU-DAIR/open-box/issues/73 % env variables
+https://github.com/PKU-DAIR/open-box/issues/84 % tpe
+
+https://www.sabio.h-its.org/
+https://amdb.online/
+https://stackoverflow.com/questions/39740632/python-type-hinting-without-cyclic-imports
+https://github.com/opencobra/cobrapy
+https://github.com/opencobra/cobrapy/discussions/1192
+http://sys-bio.github.io/roadrunner/docs-build/tutorial/tutorial.html
+https://gasgasgas.uk/michaelis-menten-enzyme-kinetics/
+
+
+% https://sbml.org/documents/specifications/
+% https://pmc.ncbi.nlm.nih.gov/articles/PMC5805351/
+% https://link.springer.com/rwe/10.1007/978-1-4419-9863-7_1461
+% https://www.kimosys.org/
+
+% https://neo4j.com/docs/api/python-driver/5.28/api.html#
+% https://sbml.org/software/libsbml/5.18.0/docs/formatted/python-api/libsbml-python-reading-files.html
+% https://reactome.github.io/reactome2py/
+% https://download.reactome.org/documentation/DataModelGlossary_V90.pdf
+% https://raw.githubusercontent.com/combine-org/combine-specifications/main/specifications/files/sbml.level-3.version-2.core.release-2.pdf
+% https://reactome.org/content/schema/DatabaseObject
+% https://petab.readthedocs.io/en/latest/index.html
+% https://petab.readthedocs.io/en/latest/v1/tutorial/tutorial.html
+% https://bitbucket.org/mclab/apricopt/src
+ 
+% https://neo4j.com/docs/operations-manual/current/performance/
+% https://bitbucket.org/mclab/tool-scalingup-smc-jss-2024/src/main/
+% https://reactome.org/reacfoam/?species=48887&color=COPPER&sel=R-HSA-9836573
+
+% PAGES
+https://neo4j.com/docs/cypher-manual/4.4/clauses/create/
+https://neo4j.com/docs/cypher-manual/current/clauses/create/
+https://neo4j.com/docs/aura/classic/aurads/tutorials/algorithm-progress/
+https://stackoverflow.com/questions/55613483/retrieve-all-nodes-that-can-be-reached-by-a-specific-node-in-a-directed-graph
+https://neo4j.com/labs/apoc/4.1/graph-querying/path-expander/
+https://neo4j.com/labs/apoc/4.1/graph-querying/expand-subgraph-nodes/
+https://neo4j.com/labs/apoc/4.1/graph-querying/expand-subgraph-nodes/
+https://neo4j.com/docs/cypher-manual/4.4/clauses/with/
+https://neo4j.com/docs/cypher-manual/current/clauses/call/
+https://neo4j.com/developer/kb/performing-match-intersection/
+https://neo4j.com/labs/apoc/4.3/overview/apoc.coll/apoc.coll.intersection/
+https://neo4j.com/docs/cypher-manual/current/clauses/match/
+https://neo4j.com/docs/cypher-manual/4.4/clauses/set/
+https://neo4j.com/docs/cypher-manual/4.4/clauses/remove/
+https://neo4j.com/docs/cypher-manual/4.4/clauses/with/
+https://neo4j.com/docs/cypher-manual/4.4/query-tuning/indexes/#administration-indexes-list-membership-check-using-in-single-property-index
+https://neo4j.com/docs/cypher-manual/4.4/indexes-for-search-performance/
+
+% PAGES 2
+https://books.google.it/books?hl=it&lr=&id=f9XiBwAAQBAJ&oi=fnd&pg=PR5&ots=bMtST9q5L1&sig=T7CrSduVpHRey-4jGUCfBJFV-fI&redir_esc=y#v=onepage&q&f=false
+sequential testing
+https://raw.githubusercontent.com/combine-org/combine-specifications/main/specifications/files/sbml.level-3.version-2.core.release-2.pdf#table.2
+https://www.w3.org/1998/Math/MathML/
+https://www.google.com/search?q=fast+biological+reactions&client=firefox-b-d&sca_esv=26624f0eb411dd2e&ei=flyjaKXCLqaL9u8P0s7GuQo&ved=0ahUKEwil-fSQ65SPAxWmhf0HHVKnMacQ4dUDCBA&uact=5&oq=fast+biological+reactions&gs_lp=Egxnd3Mtd2l6LXNlcnAiGWZhc3QgYmlvbG9naWNhbCByZWFjdGlvbnMyBRAAGO8FMgUQABjvBTIFEAAY7wUyBRAAGO8FMgUQABjvBUiJJ1DBClj8JXAEeAGQAQKYAZQCoAH_GKoBBjEuMjIuMrgBA8gBAPgBAZgCG6ACsxjCAgoQABiwAxjWBBhHwgIREC4YgAQYsQMY0QMYgwEYxwHCAgoQABiABBhDGIoFwgILEAAYgAQYsQMYgwHCAggQLhiABBixA8ICChAuGIAEGEMYigXCAgQQABgDwgIIEAAYgAQYsQPCAgUQABiABMICDhAAGIAEGLEDGIMBGIoFwgIOEC4YgAQYsQMY0QMYxwHCAg0QABiABBixAxhDGIoFwgINEAAYgAQYQxjJAxiKBcICCxAAGIAEGJIDGIoFwgINEC4YgAQYsQMYQxiKBcICCBAAGIAEGJIDwgITEC4YgAQYsQMYQxiDARjJAxiKBcICHRAuGIAEGLEDGNEDGMcBGJcFGNwEGN4EGOAE2AEBwgIFEC4YgATCAhcQLhiABBixAxiXBRjcBBjeBBjgBNgBAcICCxAuGIAEGMcBGK8BwgINEAAYgAQYsQMYgwEYCsICBxAAGIAEGArCAg4QLhiABBjHARiOBRivAcICChAuGIAEGLEDGArCAhoQLhiABBjHARivARiXBRjcBBjeBBjgBNgBAcICBhAAGBYYHsICCBAAGBYYChgewgIHEAAYgAQYE8ICCBAAGBMYFhgewgIFECEYnwXCAgUQIRigAcICBBAhGBWYAwCIBgGQBgi6BgYIARABGBSSBwY1LjIxLjGgB87ZAbIHBjEuMjEuMbgH7BfCBwowLjEuNy4xNi4zyAfBAg&sclient=gws-wiz-serp
+https://reactome.org/documentation/faq/43-graph-database-and-cypher-query/221-cypher-gene-list-to-pathways
+https://community.neo4j.com/t/create-a-relationship-between-two-already-existing-nodes-by-one-common-property/46914/7
+https://neo4j.com/labs/apoc/4.4/overview/apoc.algo/apoc.algo.dijkstra/
+https://neo4j.com/docs/cypher-manual/current/clauses/create/
+https://neo4j.com/docs/cypher-manual/current/clauses/limit/
+https://community.neo4j.com/t/cypher-convert-to-json-of-nodes-and-edges/12856
+https://neo4j.com/docs/cypher-manual/current/functions/predicate/
+https://neo4j.com/docs/cypher-manual/4.4/indexes-for-search-performance/#administration-indexes-create-a-token-lookup-index-specifying-the-index-provider
+https://neo4j.com/docs/cypher-manual/current/functions/
+https://stackoverflow.com/questions/24015854/check-whether-a-node-exists-if-not-create
+https://neo4j.com/docs/cypher-manual/current/clauses/delete/
+https://stackoverflow.com/questions/73562178/neo4j-cypher-exists-with-all-condition
+https://neo4j.com/docs/cypher-manual/4.4/clauses/with/
+https://neo4j.com/docs/cypher-manual/current/clauses/listing-procedures/
+https://neo4j.com/docs/cypher-manual/current/introduction/
+https://neo4j.com/docs/cypher-manual/current/values-and-types/lists/
+https://neo4j.com/docs/apoc/current/export/json/
+https://neo4j.com/docs/cypher-manual/current/indexes/search-performance-indexes/managing-indexes/
