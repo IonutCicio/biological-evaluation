@@ -116,7 +116,7 @@ FAIL_COST: float = sys.float_info.max
 Config: TypeAlias = dict[SId, float]
 
 
-def objective_function(
+def objective_function_multi_objective(
     biological_model: BiologicalModel, num_objectives: IntGTZ
 ) -> Callable[[Config], dict[str, list[float]]]:
     def _objective_function(config: Config) -> dict[str, list[float]]:
@@ -129,11 +129,43 @@ def objective_function(
                     for kinetic_constant, value in config.items()
                 },
             )
-            objectives = cost.normalization + cost.transitory
+            objectives = (
+                cost.normalization
+                + cost.transitory
+                + cost.order
+                + cost.modifiers
+            )
         except:
             objectives = [FAIL_COST] * num_objectives
 
         return {"objectives": objectives}
+
+    return _objective_function
+
+
+def objective_function_single_objective(
+    biological_model: BiologicalModel, num_objectives: IntGTZ
+) -> Callable[[Config], dict[str, list[float]]]:
+    def _objective_function(config: Config) -> dict[str, list[float]]:
+        objectives: list[float]
+        try:
+            cost = blackbox(
+                biological_model,
+                virtual_patient={
+                    kinetic_constant: 10**value
+                    for kinetic_constant, value in config.items()
+                },
+            )
+            objectives = (
+                cost.normalization
+                + cost.transitory
+                + cost.order
+                + cost.modifiers
+            )
+        except:
+            objectives = [FAIL_COST] * num_objectives
+
+        return {"objectives": [sum(objectives)]}
 
     return _objective_function
 

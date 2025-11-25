@@ -15,8 +15,8 @@ from biological_scenarios_generation.scenario import (
 )
 from neo4j.exceptions import ServiceUnavailable
 
-from core.blackbox import objective_function, plot
-from core.lib import init, openbox_config
+from core.blackbox import objective_function_multi_objective, plot
+from core.lib import init, openbox_config_multiobjective
 
 _, logger = init()
 
@@ -111,9 +111,11 @@ def main() -> None:
         "k_species_5693375": -13.44500084118787,
         "k_species_74294": -4.428266838957356,
     }
-    _, num_objectives, _ = openbox_config(biological_model)
+    _, num_objectives, _ = openbox_config_multiobjective(biological_model)
     logger.info(
-        objective_function(biological_model, num_objectives)(kinetic_constants)
+        objective_function_multi_objective(biological_model, num_objectives)(
+            kinetic_constants
+        )
     )
 
     try:

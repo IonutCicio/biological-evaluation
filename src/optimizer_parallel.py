@@ -5,7 +5,7 @@ from biological_scenarios_generation.model import BiologicalModel
 from openbox import ParallelOptimizer
 
 from core.blackbox import FAIL_COST, Config, blackbox
-from core.lib import init, openbox_config
+from core.lib import init, openbox_config_multiobjective
 
 option, logger = init()
 
@@ -18,7 +18,7 @@ def _objective_function(config: Config) -> dict[str, list[float]]:
     biological_model: BiologicalModel = BiologicalModel.load(
         sbml_document=libsbml.readSBML(filepath)
     )
-    _space, num_objectives, _ = openbox_config(biological_model)
+    _space, num_objectives, _ = openbox_config_multiobjective(biological_model)
     objectives: list[float] = []
     try:
         cost = blackbox(
@@ -39,7 +39,9 @@ def main() -> None:
     biological_model: BiologicalModel = BiologicalModel.load(
         libsbml.readSBML(filepath)
     )
-    _space, num_objectives, num_constraints = openbox_config(biological_model)
+    _space, num_objectives, num_constraints = openbox_config_multiobjective(
+        biological_model
+    )
     optimizer = ParallelOptimizer(
         objective_function=_objective_function,
         config_space=_space,

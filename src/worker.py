@@ -8,8 +8,8 @@ import libsbml
 from biological_scenarios_generation.model import BiologicalModel
 from openbox.utils.constants import FAILED, SUCCESS
 
-from core.blackbox import FAIL_COST, Config, objective_function
-from core.lib import init, openbox_config
+from core.blackbox import FAIL_COST, Config, objective_function_multi_objective
+from core.lib import init, openbox_config_multiobjective
 
 option, logger = init()
 
@@ -32,7 +32,7 @@ def main() -> None:
             f"{os.getenv('HOME')}/{os.getenv('PROJECT_PATH')}/{filepath}"
         )
     )
-    _, num_objectives, _ = openbox_config(biological_model)
+    _, num_objectives, _ = openbox_config_multiobjective(biological_model)
     _timedelta_load = perf_counter() - start_time
 
     # Ask suggestion
@@ -47,7 +47,9 @@ def main() -> None:
     # Compute objective function value
 
     start_time = perf_counter()
-    result = objective_function(biological_model, num_objectives)(config)
+    result = objective_function_multi_objective(
+        biological_model, num_objectives
+    )(config)
     _timedelta_blackbox = perf_counter() - start_time
     logger.info(result["objectives"])
 

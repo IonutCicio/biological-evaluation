@@ -54,7 +54,7 @@ def init() -> tuple[Option, Logger]:
     )
 
 
-def openbox_config(
+def openbox_config_multiobjective(
     biological_model: BiologicalModel,
 ) -> tuple[space.Space, IntGTZ, IntGEZ]:
     _space: space.Space = space.Space()
@@ -70,7 +70,12 @@ def openbox_config(
         ]
     )
 
-    num_objectives = IntGTZ((len(biological_model.other_parameters) - 1) * 2)
+    num_objectives = IntGTZ(
+        (len(biological_model.other_parameters) - 1)  # for normalization
+        + (len(biological_model.other_parameters) - 1)  # for transitory
+        + len(biological_model.species_order)
+        + len(biological_model.kinetic_constants_order)
+    )
 
     num_constraints = IntGEZ(0)
 

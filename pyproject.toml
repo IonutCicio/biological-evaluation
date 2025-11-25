@@ -59,8 +59,11 @@ docstring-code-line-length = "dynamic"
 skip-magic-trailing-comma = true
 
 
-[tool.pyright]
+[tool.basedpyright]
+venvPath = "./"
+venv= ".venv"
 reportMissingTypeStubs = false
 reportUnknownVariableType = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
+extraPaths = ["./src"]

@@ -4,8 +4,8 @@ import libsbml
 from biological_scenarios_generation.model import BiologicalModel
 from openbox import Advisor, Observation
 
-from core.blackbox import Config, objective_function
-from core.lib import init, openbox_config
+from core.blackbox import Config, objective_function_multi_objective
+from src.core.lib import init, openbox_config_multiobjective
 
 option, logger = init()
 
@@ -17,8 +17,12 @@ def main() -> None:
     biological_model: BiologicalModel = BiologicalModel.load(
         libsbml.readSBML(filepath)
     )
-    _space, num_objectives, num_constraints = openbox_config(biological_model)
-    _objective_function = objective_function(biological_model, num_objectives)
+    _space, num_objectives, num_constraints = openbox_config_multiobjective(
+        biological_model
+    )
+    _objective_function = objective_function_multi_objective(
+        biological_model, num_objectives
+    )
 
     max_runs = int(os.getenv("MAX_RUNS", default="1000"))
     advisor = Advisor(

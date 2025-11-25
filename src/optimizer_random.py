@@ -5,8 +5,8 @@ import random
 import libsbml
 from biological_scenarios_generation.model import BiologicalModel
 
-from core.blackbox import Config, objective_function
-from core.lib import init, openbox_config
+from .core.blackbox import Config, objective_function_multi_objective
+from .core.lib import init, openbox_config_multiobjective
 
 option, logger = init()
 
@@ -17,13 +17,15 @@ def main() -> None:
     print(filepath)
 
     biological_model = BiologicalModel.load(libsbml.readSBML(filepath))
-    _, num_objectives, _ = openbox_config(biological_model)
+    _, num_objectives, _ = openbox_config_multiobjective(biological_model)
 
     history = []
     best_config: None | dict[str, float] = None
     best_observations: None | list[float] = None
     best_value: None | float = None
-    _objective_function = objective_function(biological_model, num_objectives)
+    _objective_function = objective_function_multi_objective(
+        biological_model, num_objectives
+    )
     for _ in range(1000):
         config: Config = {
             kinetic_constant: random.uniform(
