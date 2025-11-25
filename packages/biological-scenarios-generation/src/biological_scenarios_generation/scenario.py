@@ -123,7 +123,18 @@ class BiologicalScenarioDefinition:
     )
 
     def __post_init__(self) -> None:
-        assert self.physical_entities
+        assert self.physical_entities  # 1..*
+
+        # {disjoint, complete}
+        assert not self.physical_entities.intersection(
+            self.excluded_physical_entities
+        )
+
+        for physical_entity_1, physical_entity_2 in self.constraints:
+            assert (
+                physical_entity_2,
+                physical_entity_1,
+            ) not in self.constraints
 
     @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
     class _BiochemicalNetwork:
