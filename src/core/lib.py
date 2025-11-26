@@ -10,7 +10,7 @@ from biological_scenarios_generation.model import BiologicalModel
 from dotenv import load_dotenv
 from openbox import space
 
-FAIL_COST: float = 100  # sys.float_info.max
+FAIL_COST: float = 1  # sys.float_info.max
 
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
@@ -72,13 +72,13 @@ def openbox_config_multiobjective(
         ]
     )
 
-    num_objectives = IntGTZ(4)
-    # IntGTZ(
-    #     (len(biological_model.other_parameters) - 1)  # for normalization
-    #     + (len(biological_model.other_parameters) - 1)  # for transitory
-    #     + len(biological_model.species_order)
-    #     + len(biological_model.kinetic_constants_order)
-    # )
+    # num_objectives = IntGTZ(4)
+    num_objectives = IntGTZ(
+        (len(biological_model.other_parameters) - 1)  # for normalization
+        + (len(biological_model.other_parameters) - 1)  # for transitory
+        + len(biological_model.species_order)
+        + len(biological_model.kinetic_constants_order)
+    )
 
     num_constraints = IntGEZ(0)
 
