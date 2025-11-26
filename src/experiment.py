@@ -67,6 +67,7 @@ def main() -> None:
 
         sbml_document: libsbml.SBMLDocument = libsbml.readSBML(filename)
         biological_model: BiologicalModel = BiologicalModel.load(sbml_document)
+    # exit()
 
     virtual_patient = biological_model()
     kinetic_constants = {

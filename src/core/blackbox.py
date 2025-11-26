@@ -82,21 +82,22 @@ def _blackbox(
             )
 
     for species_1, species_2 in biological_model.species_order:
-        delta: float = (
-            result[-1, rr.timeCourseSelections.index(f"[{species_1}]")]
-            - result[-1, rr.timeCourseSelections.index(f"[{species_2}]")]
-        )
-        cost.order.append(float(math.log(max(delta, 0) + 1)))
+        s_1 = result[-1, rr.timeCourseSelections.index(f"[{species_1}]")]
+        s_2 = result[-1, rr.timeCourseSelections.index(f"[{species_2}]")]
+        if 0 <= s_1 <= 1 and 0 <= s_2 <= 1:
+            cost.order.append(max(s_1 - s_2, 0))
+        else:
+            cost.order.append(1)
 
+    # [10**-20, 10**20]
     for (
         kinetic_constant_1,
         kinetic_constant_2,
     ) in biological_model.kinetic_constants_order:
-        delta: float = (
-            virtual_patient[kinetic_constant_1]
-            - virtual_patient[kinetic_constant_2]
-        )
-        cost.modifiers.append(float(math.log(max(delta, 0) + 1)))
+        k_1 = math.log(virtual_patient[kinetic_constant_1], base=10)
+        k_2 = math.log(virtual_patient[kinetic_constant_2], base=10)
+
+        cost.order.append(max(k_1 - k_2, 0) / 40)
 
     return (result, rr, cost)
 
@@ -110,7 +111,7 @@ def blackbox(
     return cost
 
 
-FAIL_COST: float = sys.float_info.max
+FAIL_COST: float = 1  # sys.float_info.max
 
 
 Config: TypeAlias = dict[SId, float]
