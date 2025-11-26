@@ -48,6 +48,7 @@ def main() -> None:
         ),
         ref_point=[FAIL_COST] * num_objectives,
     )
+    print(task_id)
 
     _ = BurstPolicy(
         args=f"-t {task_id} -e {' '.join(map(str, option.env))}",

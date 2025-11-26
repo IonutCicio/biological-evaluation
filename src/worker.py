@@ -69,6 +69,7 @@ def main() -> None:
                 {
                     "start_time": str(worker_start_time),
                     "load_duration": str(_timedelta_load),
+                    "blackbox_duration": str(_timedelta_blackbox),
                     "suggestion_duration": str(_timedelta_suggestion),
                 }
             ),
