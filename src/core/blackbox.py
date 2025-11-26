@@ -94,10 +94,10 @@ def _blackbox(
         kinetic_constant_1,
         kinetic_constant_2,
     ) in biological_model.kinetic_constants_order:
-        k_1 = math.log(virtual_patient[kinetic_constant_1], base=10)
-        k_2 = math.log(virtual_patient[kinetic_constant_2], base=10)
+        k_1 = math.log10(virtual_patient[kinetic_constant_1])
+        k_2 = math.log10(virtual_patient[kinetic_constant_2])
 
-        cost.order.append(max(k_1 - k_2, 0) / 40)
+        cost.modifiers.append(max(k_1 - k_2, 0) / 40)
 
     return (result, rr, cost)
 

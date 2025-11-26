@@ -4,6 +4,7 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 
+from core.blackbox import FAIL_COST
 from core.lib import init, openbox_config_multiobjective
 
 option, logger = init()
@@ -46,6 +47,7 @@ def main() -> None:
         max_runtime_per_trial=int(
             os.getenv("MAX_RUNTIME_PER_TRIAL", default="30")
         ),
+        ref_point=[FAIL_COST] * num_objectives,
     )
 
     _ = BurstPolicy(

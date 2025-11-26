@@ -17,7 +17,7 @@ def main2() -> None:
     tasks_of_interest: dict[str, Any] = {
         task["_id"]["$oid"]: task
         for task in tasks
-        if task["create_time"]["$date"].startswith("2025-11-23")
+        if task["create_time"]["$date"].startswith("2025-11-26")
     }
 
     with Path("runhistory.json").open() as file:
@@ -47,7 +47,8 @@ def main2() -> None:
                 optimal_y.append(cost)
             else:
                 non_optimal_x.append(x)
-                non_optimal_y.append(min(cost, 20))
+                non_optimal_y.append(cost)
+            print(cost)
 
         optimal_x.append(len(task_runhistory))
         optimal_y.append(optimal_cost)

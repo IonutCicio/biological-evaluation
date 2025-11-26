@@ -3,6 +3,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import reduce
 from operator import attrgetter
+from time import perf_counter
 from typing import Any, LiteralString, TypeAlias
 
 import libsbml
@@ -383,7 +384,10 @@ class BiologicalScenarioDefinition:
         network__inputs: LiteralString = "networkInputs"
         network_outputs: LiteralString = "networkOutputs"
         records: list[neo4j.Record]
-        records, _, _ = neo4j_driver.execute_query(
+        summary: neo4j.ResultSummary
+
+        start = perf_counter()
+        records, summary, _ = neo4j_driver.execute_query(
             query(
                 reachable_reactions_attributes, network__inputs, network_outputs
             ),
@@ -394,6 +398,7 @@ class BiologicalScenarioDefinition:
             ),
             max_depth=int(self.max_depth) if self.max_depth else -1,
         )
+        end = perf_counter()
 
         result_record = records[0]
 
@@ -454,6 +459,21 @@ class BiologicalScenarioDefinition:
             map(attrgetter("compartments"), physical_entities),
             set[Compartment](),
         )
+
+        print(
+            json.dumps(
+                {
+                    "perf": end - start,
+                    "available_after": summary.result_available_after,  # milliseconds
+                    "consumed_after": summary.result_consumed_after,  # milliseconds
+                    "physical_entities": len(physical_entities),
+                    "reaction_like_events": len(reaction_like_events),
+                }
+            ),
+            ",",
+        )
+
+        # raise Exception()
 
         return BiologicalScenarioDefinition._BiochemicalNetwork(
             interface__inputs=interface__inputs,

@@ -55,6 +55,7 @@ def register_task(
     max_runtime_per_trial=None,
     active_worker_num: int = 1,
     parallel_type: str = "async",
+    ref_point: list[float] = [],
 ) -> str:
     # email = email
     md5 = hashlib.md5()
@@ -90,6 +91,7 @@ def register_task(
         "initial_configurations": initial_configurations,
         "initial_trials": initial_runs,
         "random_state": random_state,
+        "ref_point": ref_point,
     }
 
     # Construct base url.
