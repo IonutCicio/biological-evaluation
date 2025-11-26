@@ -10,6 +10,8 @@ from biological_scenarios_generation.model import BiologicalModel
 from dotenv import load_dotenv
 from openbox import space
 
+FAIL_COST: float = 1  # sys.float_info.max
+
 
 @dataclass(init=True, repr=False, eq=False, order=False, frozen=True)
 class Option:

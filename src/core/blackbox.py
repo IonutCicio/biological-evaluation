@@ -20,6 +20,7 @@ from core.lib import init
 
 _ = init()
 
+FAIL_COST: float = 1  # sys.float_info.max
 
 Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
@@ -109,9 +110,6 @@ def blackbox(
         biological_model=biological_model, virtual_patient=virtual_patient
     )
     return cost
-
-
-FAIL_COST: float = 1  # sys.float_info.max
 
 
 Config: TypeAlias = dict[SId, float]

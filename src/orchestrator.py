@@ -4,8 +4,7 @@ import buckpass
 from biological_scenarios_generation.model import BiologicalModel, libsbml
 from buckpass.policy.burst import BurstPolicy
 
-from core.blackbox import FAIL_COST
-from core.lib import init, openbox_config_multiobjective
+from core.lib import FAIL_COST, init, openbox_config_multiobjective
 
 option, logger = init()
 
