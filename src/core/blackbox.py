@@ -20,7 +20,7 @@ from core.lib import init
 
 _ = init()
 
-FAIL_COST: float = 1  # sys.float_info.max
+FAIL_COST: float = 100  # sys.float_info.max
 
 Trajectory: TypeAlias = np.ndarray[tuple[int, ...], np.dtype[np.float64]]
 
@@ -128,12 +128,12 @@ def objective_function_multi_objective(
                     for kinetic_constant, value in config.items()
                 },
             )
-            objectives = (
-                cost.normalization
-                + cost.transitory
-                + cost.order
-                + cost.modifiers
-            )
+            objectives = [
+                sum(cost.normalization),
+                sum(cost.transitory),
+                sum(cost.order),
+                sum(cost.modifiers),
+            ]
         except:
             objectives = [FAIL_COST] * num_objectives
 
@@ -157,9 +157,9 @@ def objective_function_single_objective(
             )
             objectives = (
                 cost.normalization
-                + cost.transitory
-                + cost.order
-                + cost.modifiers
+                + [sum(cost.transitory)]
+                + [sum(cost.order)]
+                + [sum(cost.modifiers)]
             )
         except:
             objectives = [FAIL_COST] * num_objectives
