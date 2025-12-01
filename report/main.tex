@@ -26,6 +26,7 @@
 \usepackage{algorithm}
 \usepackage{biblatex}
 \usepackage{graphicx}
+\usepackage{tikz}
 
 \usepackage{amsmath}
 \DeclareMathOperator*{\argmin}{argmin}
@@ -153,7 +154,33 @@ basicstyle= % <-- Add this for the rest of the text
 
 \maketitle
 
-\begin{abstract} \end{abstract}
+\begin{abstract} 
+
+    In this report it's presented a tool that uses molecular pathway databases
+    to generate biochemical networks by computing the backwards-reachable
+    reactions from a set of species of interest. The biochemical network is
+    then extended with a system of ODE which describes its dynamics  by using
+    mass action kinetics.
+
+%     Model-based formal verification of industry-relevant Cyber-Physical Systems (CPSs) is often a computationally
+% prohibitive task. In most cases, the complexity of the models precludes any prospect of symbolic analysis,
+% leaving numerical simulation as the only viable option. Unfortunately, exhaustive simulation of a CPS model
+% over the entire set of plausible operational scenarios is rarely possible in practice, and alternative strategies
+% such as Statistical Model Checking (SMC) must be used instead.
+% In this article, we show that the number of model simulations (samples) required by SMC techniques to
+% converge can be significantly reduced by considering multiple (an ensemble of) Adaptive Stopping Algorithms
+% (SAs) at once, and that the simulations themselves (by far the most expensive step of the entire workload) can
+% be efficiently sped up by exploiting massively parallel platforms.
+% With three industry-scale CPS models, we experimentally show that the use of an ensemble of two state-of-
+% the-art SAs (AA and EBGStop) may require dozens of millions fewer samples when compared to running a single
+% algorithm, with reductions in sample size of up to 78\%. Furthermore, we show that our implementation, by
+% massively parallelizing system model simulations on a HPC infrastructure, yields speed-ups for the completion
+% time of the verification tasks which are practically linear with respect to the number of computational nodes,
+% thus achieving an efficiency of virtually 100\%, even on very large platforms. This makes it possible to complete
+% tasks of model-based SMC verification for complex CPSs in a matter of hours or days, whereas a naïve
+% sequential execution would require from months to many years.
+
+\end{abstract}
 
 \tableofcontents
 
@@ -162,56 +189,104 @@ basicstyle= % <-- Add this for the rest of the text
 \chapter{Introduction}
 
 Biological systems such as organisms, cells, or biomolecules are highly
-organized in their structure and function, \cite{Klipp16}.
-% [structure which is a consequence of evolution]. 
-[Such structures can help study the and compare biological functions of
-different organisms]. [In order to understand, formalize and abstract these
-structures some kind of modeling is needed, be it mathematical or not (what
-not?)].
+organized in their structure and function, \cite{Klipp16}. Such structures can
+help study the and compare biological functions of different organisms. In
+order to understand, formalize, abstract and make predictions on these
+structures a mathematical model of these structures is needed.
+
+Given a set of biochemical species and metabolic pathways of interest, this
+report presents a tool which generates biological models by using the Reactome
+pathway database \cite{Fabregat2018} to compute the biochemical network of all
+the backwards-reachable species and reactions starting from the species of
+interest and within the metabolic pathways of interest. 
+
+The generated biochemical networks are qualitative models and contain
+information about the backwards-reachable reactions (and reaction-like events),
+their products, reactants (with the stoichiometries), modifiers and
+compartments. In order to study the dynamic behaviour of these biochemical
+networks a system of ODE is produced by using the Law of Mass Action to
+describe the rates of the reactions within the network, and new reactions are
+added to produce and consume the species on the boundary of the network.
+
+The product is a SBML (Systems Biology Markup Language) \cite{sbml} file with
+the dynamics of the biochemical network and a set of decision variables that
+determine the speeds of the reactions within the network. This model is then
+subject to a study of stability by defining a set of constraints for stability
+and using the OpenBox BBO (blackbox optimization) solver \cite{li2021openbox}
+to find \textit{virtual patients} (assignements to the decision variables)
+which produce stable states for the model. 
+
+Validating the stability constraints for a \textit{virtual} patient requries
+simulating the biological model, which is a very computationally expensive task
+when done multiple times; in order to reduce steady states search times an
+orchestrator-worker architecture is introduced by using the OpenBox as a
+Service \cite{OpenBoxServiceDocumentation} feature.
 
 
-In this report is presented a proof of concept which generates biological models
-by using the concept of reachability and databases of biochemical reactions.
-
-
-[A fundamental component of bioinformatics is data integration, (a problem is)
-i.e. partial information in distributed databases is needed]. [One such data
-source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
-REACTOME is an open-source, open access, manually curated and peer-reviewed
-pathway database. [The goal with this work is to use qualitative data in the
-Reactome database to generate quantitative models, and use BBO (cite something)
-techinques to "validate" (validate is not good, find something else) these
-models]
-
-[Validating complex biological models is a computationally intensive task (cite
-something) thus HPC clusters are required in order. ] {Such clusters may not
-always be fully available (i.e. there are multiple users and multiple
-experiments running on the cluster + there are some limits on job running
-times), so in order to better distribute the load of the validation task some
-infrastructure work is needed.}
+% [A fundamental component of bioinformatics is data integration, (a problem is)
+% i.e. partial information in distributed databases is needed]. [One such data
+% source is Reactome \cite{Fabregat2018}, which is a qualitative network database]
+% REACTOME is an open-source, open access, manually curated and peer-reviewed
+% pathway database. [The goal with this work is to use qualitative data in the
+% Reactome database to generate quantitative models, and use BBO (cite something)
+% techinques to "validate" (validate is not good, find something else) these
+% models]
+%
+% [Validating complex biological models is a computationally intensive task (cite
+% something) thus HPC clusters are required in order. ] {Such clusters may not
+% always be fully available (i.e. there are multiple users and multiple
+% experiments running on the cluster + there are some limits on job running
+% times), so in order to better distribute the load of the validation task some
+% infrastructure work is needed.}
 
 \newpage
 
 
 \section{Preliminaries}
 
+% We denote by $\mathbb{R}, \mathbb{R}_{0_{+}}, \mathbb{Z}, \mathbb{N}$ the sets of, respectively, real, non-
+% negative real, integer, and non-negative integer numbers.
 The set of non-zero natural numbers is denoted with $\mathbb{N}_+ = \mathbb{N} - \{ 0 \}$.
+
+This report uses the terms \textit{species} and \textit{physical entity}
+interchangibly to refer to biochemical species, since Reactome
+\cite{ReactomeDataModelGlossary} uses the term \textit{PhysicalEntity} and SBML
+\cite{sbmlLevel3Version2CoreRelease2} uses the term \textit{species}. 
+
+Reactome uses the term \textit{ReactionLikeEvent} to refer to reactions
+\cite{ReactomeDataModelGlossary}, since it encompasses different types of
+events other than simple chemical reactions (such as translocation of molecules
+from one compartment to another, association of molecules to form complexes and
+polymers, dissociation of complexes and polymers etc...).
+
+
+% (TODO: cite glossary and use glossary to tell different types of reactions)
+
+% (because X, Y, the two main technologies used in this work, use the
+% two terms) r
+
+% - TODO: what is a species
+%
+% - TODO: what is a reaction
+%
+% - TODO: what is a compartment (use footnotes)
+
 
 \section{Biochemical networks} % TODO: Motivation
 
-Biochemical networks are one of the main concepts often used to model
-biological systems \cite{Koutrouli2023erratum}. Such networks are made up of
-relations between physical entities (small molecules, proteins, nucleic acids,
-chemical compounds, complexes, larger macromolecular assemblies, atoms,
-electrons, and photons \cite{ReactomeDataModelGlossary}) and reactions (such as
-standard chemical reactions, translocation of molecules from one compartment to
-another, association of molecules to form complexes and polymers, etc...
+Biochemical networks are one of the main concepts used to model biological
+systems \cite{Koutrouli2023erratum}. Such networks are made up of relations
+between physical entities (small molecules, proteins, nucleic acids, chemical
+compounds, complexes, larger macromolecular assemblies, atoms, electrons, and
+photons \cite{ReactomeDataModelGlossary}) and reactions (such as standard
+chemical reactions, translocation of molecules from one compartment to another,
+association of molecules to form complexes and polymers, etc...
 \cite{ReactomeDataModelGlossary}). More often than not biochemical networks are
-organized in pathways, sets of causally connected
-reactions \cite{ReactomeDataModelGlossary}; such pathways, in pathway databases
-like Reactome (Figure \ref{fig:reactome-uml}) are organized hierarchically:
-Reactome has top-level pathways, like \textit{Signal transduction} (reactions
-where extracellular signals elicit changes in cell state and activity),
+organized in pathways, sets of causally connected reactions
+\cite{ReactomeDataModelGlossary}; such pathways, in pathway databases like
+Reactome (Figure \ref{fig:reactome-uml}) are organized hierarchically: Reactome
+has top-level pathways, like \textit{Signal transduction} (reactions where
+extracellular signals elicit changes in cell state and activity),
 \textit{Muscle contraction} (Figure
 \ref{fig:striated-muscle-contraction-hierarchy}) and the \textit{Neuronal
 system}, each composed of other smaller pathways or reactions.
@@ -290,7 +365,7 @@ quantities of species, reactions speeds, compartments sizes etc...
 
 
 \begin{definition}[Biochemical network] 
-    A biochemical network $G$ is a tuple $(S, R, E, s)$ where 
+    A biochemical network $G$ is a tuple $(S, R, E, \sigma)$ where 
     \begin{itemize}
         \item $S = U \cup X \cup Y$ is the set of species of the biochemical network 
             \begin{itemize}
@@ -299,10 +374,17 @@ quantities of species, reactions speeds, compartments sizes etc...
                 \item $Y$ is the set of output species of the network
             \end{itemize}
         \item $R$ is the set of reactions in the biochemical network
-        \item $E = E_\text{reactants} \cup E_\text{products} \cup
-            E_\text{modifiers}^+ \cup E_\text{modifiers}^- \subseteq S \times R
-            $ is the set of relations between species and reactions
-        \item $s : E_\text{reactants} \cup E_\text{products} \rightarrow \mathbb{N}_+$ is the stoichiometry of the species in the reaction
+        \item $E = (E_\text{reactants}, E_\text{products},
+            E_\text{modifiers}^+,  E_\text{modifiers}^-)$ is a tuple with the
+            sets of relations between species and reactions with $E_i \subseteq
+            S \times R$
+        % \item $E = (E_\text{reactants}, E_\text{products},
+        %     E_\text{modifiers}^+, E_\text{modifiers}^-)$ with $E_i \subseteq S
+        %     \times R$ is the set of relations between species and reactions
+            % TODO: rewrite
+        \item $\sigma : E_\text{reactants} \cup E_\text{products} \rightarrow
+            \mathbb{N}_+$ is the stoichiometry of the reactants of products of
+            the reaction
     \end{itemize}
 \end{definition}
 
@@ -334,6 +416,10 @@ reaction. (TODO: reference cypher query or species)
 
 \section{Dynamics of biochemical networks}
 
+Qualitative models, such as the aforementioned biochemical networks, are not
+enough to study the behaviour of a pathway, a description of how the network
+evolves over time when put in a stable environment is needed in order to make
+predictions and study what happens when the model is subject to perturbations.
 Systems of ordinary differential equations (ODE) are one of the approaches used
 in order to describe the dynamic behaviour of biochemical networks
 \cite{Klipp16}.
@@ -342,23 +428,18 @@ in order to describe the dynamic behaviour of biochemical networks
     \begin{center}
         \includegraphics[width=.6\textwidth]{./images/hemoglobin.pdf}
     \end{center}
-    % \includegraphics[]{./images/legend.png}
-    % (R-HSA-390522.3) 
-    % https://reactome.org/PathwayBrowser/#/R-HSA-390522&PATH=R-HSA-397014
     \caption{
         \textit{Hemoglobin A} binds O$_2$, releasing H$^+$ and CO$_2$, then
         AQP1 acts as a catalyst and transports CO$_2$ from the cytosol to the
-        extracellular region
-        % TODO: species are different based on region
-        % TODO: define what cytosol is, maybe with a footnote
-        % TODO: cite 
-        % https://reactome.org/PathwayBrowser/#/R-HSA-1247673&SEL=R-HSA-1247668&PATH=R-HSA-382551,R-HSA-1480926
-        % \cite{ReactomeStriatedMuscleContraction}
+        extracellular region (reaction in the \textit{O$_2$/CO$_2$ exchange in erythrocytes} pathway \cite{ReactomePathwayBrowserOxigenExchagnePathway})
     }
+    % TODO: species are different based on region
+    % TODO: define what cytosol is, maybe with a footnote
+    % TODO: recall to appendix to explain why physical entities have different regions
     \label{fig:hemoglobin}
 \end{figure}
 
- Let $G = (S, R, E, s)$ be the biochemical network in Figure \ref{fig:hemoglobin}
+ Let $G = (S, R, E, \sigma)$ be the biochemical network in Figure \ref{fig:hemoglobin}
 
 % TODO:  https://reactome.org/PathwayBrowser/#/R-HSA-1247673&PATH=R-HSA-382551,R-HSA-1480926
 % https://reactome.org/PathwayBrowser/#/R-HSA-1247673&SEL=R-HSA-1247668&PATH=R-HSA-382551,R-HSA-1480926
@@ -376,39 +457,247 @@ in order to describe the dynamic behaviour of biochemical networks
                 in the extracellular region
         \end{itemize}
 
-    \item $R = \{R_1, R_2\}$ where $R_1$ and $R_2$ are respectively the
+    \item $R = \{r_1, r_2\}$ where $r_1$ and $r_2$ are respectively the
         dissociation reaction and the transport reaction
 \end{itemize}
 
+One possible way to describe the dynamics of $G$ is through the system of
+ordinary differential equations described in Equations \ref{eq:ode-1},
+\ref{eq:ode-2} and \ref{eq:ode-3}, where the rate of change of a given species
+$S_i \in S$ depends on the rate of change of the reactions that produce and
+consume it.
 
-\begin{center}
-$
-\begin{cases}
-    a \\
-    b \\
-\end{cases}
-$
-\end{center}
+\newcommand{\dd}{\mathop{}\!\mathrm{d}}
+
+\begin{equation}
+    \begin{gathered}
+        \frac{\dd \text{O}_2}{\dd t} = -r_1, \quad
+        \frac{\dd \text{Hb}_1}{\dd t} = -r_1, \quad
+        \frac{\dd \text{Hb}_2}{\dd t} = +r_1, \quad
+        \frac{\dd \text{H}^+}{\dd t} = +r_1 \\
+        \frac{\dd \text{CO}_2^c}{\dd t} = +r_1 - r_2, \quad
+        \frac{\dd \text{CO}_2^e}{\dd t} = -r_1 + r_2, \quad
+        \frac{\dd \text{A}}{\dd t} = 0 \\
+    \end{gathered}
+    \label{eq:ode-1}
+\end{equation}
+
+\begin{equation}
+    r_1 = k_1 \cdot (\text{O}_2)^4 \cdot (\text{Hb}_1)^1
+    \label{eq:ode-2}
+\end{equation}
+\begin{equation}
+    r_2 = k_2 \cdot (\text{CO}_2^c)^4 \cdot \frac{A^{n_1}}{K_1 + A^{n_1}}
+    \label{eq:ode-3}
+\end{equation}
+
+The reaction rate of $r_1$ and $r_2$ is given by mass action kinetics, where
+the speed of reaction $r_i \in R$ is determined by the kinetic constant $k_i$
+and is proportional to the concentrations of the reactants and modifiers. In
+particular, since AQP1 acts as a catalyst in Equation \ref{eq:ode-3}, reaction
+$r_2$ can be activated only if $A$ reaches a certain concentration which
+depends on the constants $K_1$ and $n_1$ in the hill function.
+
+\subsection{The Law of Mass Action}
+
+The kinetics in Equantions \ref{eq:ode-2} and \ref{eq:ode-3} are based on the
+mass action law, introduced by Guldberg and Waage in 1864
+\cite{GuldbergWaage64}. It states that the reaction rate is proportional to the
+probability of a collision of the reactants, probability which is in turn
+proportional to the concentration of reactants to the power of the molecularity
+(stoichiometry), which is the number in which the molecule species enter the
+reaction (this is because the higher is the  number of molecule species need
+for the reaction to happen, the lower is the probability the reaction will
+happen) \cite{Klipp16}.  Given a biochemical network $G = (S, R, E, \sigma)$, and a
+reaction $r \in R$, where $r$ is a \textbf{reversible} reaction, the rate
+of the reaction $r$ in its most general form is written as 
+
+\begin{equation}
+    r = k_r^+ \cdot \prod_{\substack{(s, r) \\ \in \\ E_\text{reactants}}} s^{\sigma(s, r)} - 
+    k_r^- \cdot \prod_{\substack{(s, r) \\ \in \\ E_\text{products}}} s^{\sigma(s, r)}
+    \label{eq:law-of-mass-action}
+\end{equation}
+
+where
+
+\begin{itemize}
+    \item $s$ indicates the concentration of the species $s$
+    \item $k_r^+$ is the kinetic constant of the forward reaction
+    \item $k_r^-$ is the kinetic constant of the backward reaction
+\end{itemize}
+
+The form used for the generation of biological models in this report is the simpler one in Equation
+\ref{eq:law-of-mass-action-simple}. This is because Reactome models reversible
+reactions as two different reactions, so it's enough to include both the
+forward and the backward reaction in order to obtain the equation for a single
+reversible reaction.
+
+\begin{equation}
+    r = k_r \cdot \prod_{\substack{(s, r) \\ \in \\ E_\text{reactants}}} s^{\sigma(s, r)}
+    \label{eq:law-of-mass-action-simple}
+\end{equation}
+
+The law of mass action has the advantage that a single decision variable is
+associated to each reaction in order to determine the speed of the reaction.
+This is a gross semplification since the behaviour of reactions is more complex
+than this, but more detailed kinetics such as convenience kinetics introduce
+many more decision variables, making the search of \textit{virtual patients}
+for the model harder.
 
 
-\begin{definition}[Dynamic biochemical network]
-    Given a biochemical network $G = (S, R, E, s)$ let $D = (G, theta)$
+\subsection{Hill equation}
+
+In nature the speed of reactions is heavily influenced by modifiers (enzymes
+which speed-up the reaction and inhibitors which slow down or stop the
+reaction). The characteristic of modifiers is that they are neither consumed or
+produced by the reaction. Given a biochemical network $G = (S, R, E, \sigma)$, and a
+pair $(s, r) \in E_\text{modifiers}^+ \cup E_\text{modifiers}^-$ (meaning
+that the species $s$ is a modifier for reaction $r$, either as a catalyzer
+or an inhibitor), the hill function can be defined as
+
+\begin{equation}
+    H_r^s =
+    \begin{cases}
+        \frac{(s)^{n_r^s}}{K_r^s + (s)^{n_r^s}}, \quad \text{if} \; (s, r) \in E_\text{modifiers}^+ \\[2ex]
+        \frac{K_r^s}{K_r^s + (s)^{n_r^s}}, \quad \text{if} \; (s, r) \in E_\text{modifiers}^- \\
+    \end{cases}
+\end{equation}
+
+where 
+
+\begin{itemize}
+    \item $K_r^s$ is the apparent dissociation constant of modifier $s$ in
+        reaction $r$
+    \item $n_r^s$ the hill coefficient of modifier $s$ (often in literature
+        it's indicated with $h$) % TODO: citation
+\end{itemize}
+
+
+\begin{figure}[H]
+    \begin{tabular}{ccc}
+        \begin{tikzpicture}[scale=2.5]
+            \draw[->,line width=1pt] (-0.25,0)--(1.25,0) node[right]{$x$};
+            \foreach \x in {1}
+                \draw (\x,0) node[below]{\x};
+
+            \draw[->,line width=1pt] (0,-0.25)--(0,1.25) node[above]{$y$};
+            \foreach \y in {1}
+                \draw (0,\y) node[left]{\y};
+
+            \draw[gray,dashed,very thin] (-0.25,-0.25) grid (1.25, 1.25);
+
+            \draw[blue,line width=1pt,domain=0:1.25, samples=100] 
+                plot(\x,{pow(\x,3)/(0.01+pow(\x,3))});
+        \end{tikzpicture}
+        \begin{tikzpicture}[scale=2.5]
+            \draw[->,line width=1pt] (-0.25,0)--(1.25,0) node[right]{$x$};
+            \foreach \x in {1}
+                \draw (\x,0) node[below]{\x};
+
+            \draw[->,line width=1pt] (0,-0.25)--(0,1.25) node[above]{$y$};
+            \foreach \y in {1}
+                \draw (0,\y) node[left]{\y};
+
+            \draw[gray,dashed,very thin] (-0.25,-0.25) grid (1.25, 1.25);
+
+            \draw[blue,line width=1pt,domain=0:1.25, samples=100] 
+                plot(\x,{pow(\x,20)/(0.01+pow(\x,20))});
+        \end{tikzpicture}
+        \begin{tikzpicture}[scale=2.5]
+            \draw[->,line width=1pt] (-0.25,0)--(1.25,0) node[right]{$x$};
+            \foreach \x in {1}
+                \draw (\x,0) node[below]{\x};
+
+            \draw[->,line width=1pt] (0,-0.25)--(0,1.25) node[above]{$y$};
+            \foreach \y in {1}
+                \draw (0,\y) node[left]{\y};
+
+            \draw[gray,dashed,very thin] (-0.25,-0.25) grid (1.25, 1.25);
+
+            \draw[blue,line width=1pt,domain=0:1.25, samples=100] 
+                plot(\x,{pow(\x,10)/(0.1+pow(\x,10))});
+        \end{tikzpicture}
+    \end{tabular}
+    \caption{
+        hill function for a catalyst with parameters $K_r^s, n_r^s$ respectively
+        $(0.01, 3), (0.01, 10), (0.1, 10)$
+    }
+\end{figure}
+
+With this information the kinetics of Equation \ref{eq:ode-3}, which describes
+the transport of CO$_2$ from the cytosol to the extracellular region, can be
+explained like this:
+
+\begin{itemize}
+    \item $k_1$ is the kinetic constant of the forward reaction
+    \item $(\text{O}_2)^4$ is the concentration of O$_2$, raised to the power
+        of 4 (the stoichiometry), given by the law of mass action
+    \item $A$ acts as a catalyst for the transportation, so a hill function is
+        used to moderate the speed of the reaction based on the concentration
+        of $A$ 
+\end{itemize}
+
+% TODO: multiplication with law of mass action (somewhat done with example)
+
+\newpage
+
+In order to define the dynamics of a given biochemical network, the network
+needs to be expanded to handle boundary species. In particular, for all species
+that that are only inputs of the network a reaction needs to be added in order
+to constantly produce the species (as the network needs to be simulated in a
+stable environment). Contrarywise, all species which are only outputs of the
+network need to be consumed. Some species are both inputs and outputs of the
+network, these species are modifiers (otherwise they would either be consumed
+in a reaction or produced by a reaction), and can be set to a fixed
+concentration.
+
+\begin{definition}[Biological model]
+    Given a biochemical network $G = (S, R, E, \sigma)$ let $B = (G', \cal{K})$ be
+    the biological model derived from $G$ with added mass action kinetics, with
+    $G' = (S, R', E', s')$ where 
+    \begin{itemize}
+        \item $R' = R \cup R_\text{inputs} \cup R_\text{outputs}$ where
+        \begin{itemize}
+            \item $R_\text{inputs} = \{ r_{s} \; | \; s \in U - Y \}$ 
+            \item $R_\text{outputs} = \{ r_{s} \; | \; s \in Y - U \}$ 
+        \end{itemize}
+        \item $E' = (E'_\text{reactants}, E'_\text{products}, E_\text{modifiers}^+,  E_\text{modifiers}^-)$, where
+        \begin{itemize}
+            \item $E'_\text{reactants} = E_\text{reactants} \cup \{ (s, r) \; | \; r_s \in R_\text{inputs} \}$ 
+            \item $E'_\text{products} = E_\text{products} \cup \{ (s, r) \; | \; r_s \in R_\text{outputs} \}$
+        \end{itemize}
+% \{ (s, r) \; | \; r_s \in r_\text{inputs} \} \cup \{ (s, r) \; | \; r_s \in r_\text{outputs}\} E
+    \end{itemize}
+    \begin{equation}
+        \begin{aligned}
+        \end{aligned}
+    \end{equation}
+
+            % \begin{itemize}
+            %     \item $E'_\text{reactants} = $
+            % \item $E'_\text{products} = $
+            % \end{itemize}
+
+    Then $\cal{K}$ can be defined on $G'$
+
+    \begin{equation}
+        \begin{aligned}
+            \cal{K} = & \{ k_r \; | \; r \in R' \} \; \cup \\
+                & \{ K_r^s \; | \; r \in R' \land (s, r) \in E^+_\text{modifiers} \cup E^-_\text{modifiers} \} \; \cup \\
+                & \{ n_r^s \; | \; r \in R' \land (s, r) \in E^+_\text{modifiers} \cup E^-_\text{modifiers} \} \; \cup
+        \end{aligned}
+    \end{equation}
+    where 
+    \begin{itemize}
+        \item $k_r$ is the kinetic constant of reaction $r$
+        \item $K_r^s$ is the apparent dissociation constant of modifier $s$ in reaction $r$
+        \item $n_r^s$ the hill coefficient of modifier $s$ in reaction $r$
+    \end{itemize}
 \end{definition}
 
-
-% #definition("biological network")[
-%     A biological network $G$ is a triple $(S, R, E, sigma)$ s.t.
-%     - $S = U union.sq X union.sq Y$ is the set of species of the biological
-%         network
-%         - $U$ is the set of input species
-%         - $X$ is the set of other species in the network
-%         - $Y$ is the set of output species
-%     - $R$ is the set of reactions in the biological network
-%     // - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"pos_modifier" union.sq E_"neg_modifier"$
-%     - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"modifier"$
-%         is a relationship between species and reactions
-%     - $sigma : E_"reactant" union E_"product" -> NN^1$
-% ]
+% TODO: apparent dissociation constant
+% TODO: hill coefficient
+% TODO: which dictates ...)
 
 
 % Systems of ordinary differential equations (ODE) are
@@ -424,48 +713,62 @@ $
 % \section{Outline} % TODO: Outline
 % TODO: rename in somthing like "finding virtual patients for a model"
 
-\chapter{Biological models}
+% \begin{definition}[Biological network] A biological network $G$ is a tuple $(S, R, E, \sigma)$ where
+% \begin{itemize}
+%     \item $S = U \cup X \cup Y$ is the set of species of the biological network, where
+%         \begin{itemize}
+%             \item $U$ is the set of input species
+%             \item $Y$ is the set of output species
+%             \item $X$ is the set of other species in the network
+%         \end{itemize}
+%     \item $R$ is the set of reactions in the biological network
+%     \item $E \subseteq S \times R$
+% \end{itemize}
+% \end{definition}
 
 
-% - TODO: what is a species
+\chapter{Biological models generation}
+
+% \chapter{Quantitative model generation}
+
+% TODO: number of species, reactions and parameters in the network
+
+% Given a set of target species, a set of constraints on the target species
+% (constraints which model a scenario that could present, for example, in a
+% disease) and by taking into account all the reactions within a set target
+% pathways that lead to the production, both directly and indirectly, of the
+% target species, the goal is to find a subset of virtual patients for the
+% described scenario.
+
+\section{Reactome and reachability}
+
+REACTOME is an open-source, open access, manually curated and peer-reviewed
+pathway database. (TODO: cite Reactome)
+
+
+Given a biochemical species $S$ one possibile way to
+
+
+\section{Scenarios}
+
+\noindent\makebox[\textwidth]{
+    \begin{tabular}{ccc}
+    \includegraphics[width=60mm]{./images/nitric_oxide_signal_transduction_reactions.png} &
+    \includegraphics[width=60mm]{./images/nitric_oxide_signal_transduction_entities.png} &
+    \includegraphics[width=60mm]{./images/nitric_oxide_signal_transduction_time.png} \\ 
+    \includegraphics[width=60mm]{./images/co_2_cytosol_molecules_transport_reactions.png} &
+    \includegraphics[width=60mm]{./images/co_2_cytosol_molecules_transport_entities.png} &
+    \includegraphics[width=60mm]{./images/co_2_cytosol_molecules_transport_time.png} 
+    \end{tabular}
+}
+
+% (TODO: define what is an expansions, why do we need a scenario, etc...it might be important to study what a subsection which contains two specific species behaves)
 %
-% - TODO: what is a reaction
+% (TODO: define what is a Pathway, and what a Pathway is in terms of Reactome)
 %
-% - TODO: 
+% (TODO: maybe do a chapter about Reactome, or something simpler before about the generation, maybe about "Reachability", for 
+% reachability you need a definition of a network)
 
-We denote by $\mathbb{R}, \mathbb{R}_{0_{+}}, \mathbb{Z}, \mathbb{N}$ the sets of, respectively, real, non-
-negative real, integer, and non-negative integer numbers.
-
-The terms "physical entity" and "species" are used interchangibly in this document, since Reactome (TODO: cite reactome document model / glossary) uses "PhysicalEntity" to reference (TODO: biological species?) and SBML (TODO: cite SBML documentation) uses "Species".
-
-Reactome uses "ReactionLikeEvent" to refer to generic reactions (TODO: cite glossary and use glossary to tell different types of reactions)
-
-\begin{definition}[Biological network] A biological network $G$ is a tuple $(S, R, E, \sigma)$ where
-\begin{itemize}
-    \item $S = U \cup X \cup Y$ is the set of species of the biological network, where
-        \begin{itemize}
-            \item $U$ is the set of input species
-            \item $Y$ is the set of output species
-            \item $X$ is the set of other species in the network
-        \end{itemize}
-    \item $R$ is the set of reactions in the biological network
-    \item $E \subseteq S \times R$
-\end{itemize}
-\end{definition}
-
-% #definition("biological network")[
-%     A biological network $G$ is a triple $(S, R, E, sigma)$ s.t.
-%     - $S = U union.sq X union.sq Y$ is the set of species of the biological
-%         network
-%         - $U$ is the set of input species
-%         - $X$ is the set of other species in the network
-%         - $Y$ is the set of output species
-%     - $R$ is the set of reactions in the biological network
-%     // - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"pos_modifier" union.sq E_"neg_modifier"$
-%     - $E subset.eq S times R = E_"reactant" union.sq E_"product" union.sq E_"modifier"$
-%         is a relationship between species and reactions
-%     - $sigma : E_"reactant" union E_"product" -> NN^1$
-% ]
 
 % // Average quantities
 % //
@@ -498,62 +801,68 @@ Reactome uses "ReactionLikeEvent" to refer to generic reactions (TODO: cite glos
 % //         $
 
 
+% \begin{definition}[Biological scenario]
+%     A
+% \end{definition} A scenario is defined by
 
-% \chapter{Quantitative model generation}
-
-
-% TODO: number of species, reactions and parameters in the network
-
-\section{Reachability}
-
-Given a set of target species, a set of constraints on the target species
-(constraints which model a scenario that could present, for example, in a
-disease) and by taking into account all the reactions within a set target
-pathways that lead to the production, both directly and indirectly, of the
-target species, the goal is to find a subset of virtual patients for the
-described scenario.
-
-\section{Scenario definition}
-
-(TODO: define what is an expansions, why do we need a scenario, etc...it might be important to study what a subsection which contains two specific species behaves)
-
-(TODO: define what is a Pathway, and what a Pathway is in terms of Reactome)
-
-(TODO: maybe do a chapter about Reactome, or something simpler before about the generation, maybe about "Reachability", for 
-reachability you need a definition of a network)
+   
+% \begin{itemize}
+%     \item a set of physical entities from which to start the expansions
+%     \item a set ot pathways to which to limit (constraint?) reactions to
+%     \item a max depth for recursion (/reachability) (TODO: a max depth in terms of nodes in the path, not in the number of reactions in the path, for that apoc is needed)
+%
+%     \item a set of physical entities to exclude from reachability
+%
+%     \item a partial order of the species 
+%
+% \end{itemize}
+% (as per figure ... of UML etc...)
 
 
-\begin{definition}[Biological scenario]
-    A
-\end{definition} A scenario is defined by
-{   
-\begin{itemize}
-    \item a set of physical entities from which to start the expansions
-    \item a set ot pathways to which to limit (constraint?) reactions to
-    \item a max depth for recursion (/reachability) (TODO: a max depth in terms of nodes in the path, not in the number of reactions in the path, for that apoc is needed)
+% \section{lll}
 
-    \item a set of physical entities to exclude from reachability
+\newpage
 
-    \item a partial order of the species 
+\section{Constraint satisfiability problem}
 
-\end{itemize}
-(as per figure ... of UML etc...)
-}
+% TODO: Version: 	4.3.6, Edition: 	enterprise
 
-\section{lll}
-
-\section{Satisfiability problem definition}
-
-TODO: biochemical network $\rightarrow$ biochemical network with dynamics
-$\rightarrow$ satisfiability problem $\rightarrow$ optimization problem
+% TODO: biochemical network $\rightarrow$ biochemical network with dynamics
+% $\rightarrow$ satisfiability problem $\rightarrow$ optimization problem
 
 \begin{definition}[Biological model satisfiability problem]
-    Given a dynamic biochemical network $D = (S, R, E, s)$ let 
-    \begin{itemize}
-        \item $\mathcal{S} = \{C_s | s \in S\}$
-        \item $\mathcal{S}_\text{avg} = \{C_\text{avg} | s \in S\}$
-        \item ll
-    \end{itemize}
+    Given a biological model  $B = (G, \mathcal{K})$ let $\mathcal{S}$ be the
+    set of concentrations of species of the species in the network,
+    $\mathcal{S} = \{ s \; | \; s \in S \}$ and  $\mathcal{S}_\text{avg} =
+    \{s_\text{avg} \; | \; s \in S\}$ the set of average concentrations of the
+    species, $T \in \mathbb{R}$ the time horizon, the following constraints
+    must hold:
+
+    % \begin{itemize}
+    \begin{equation}
+         \forall s \in \mathcal{S} \quad 0 \leq s \leq 1
+    \end{equation}
+    \begin{equation}
+        \begin{aligned}
+            & \forall k_{r_1}, k_{r_2} \in \mathcal{K}, \; s \in S \\
+            & \quad (s, r_1) \in E_\text{products} \land (s, r_2) \in E_\text{modifiers} \land r_1 \neq r_1 \Rightarrow k_{r_1} < k_{r_2}
+        \end{aligned}
+    \end{equation}
+    \begin{equation}
+        \forall s \in \mathcal{S}_\text{avg} \quad s(\phi \cdot T) - s(T) = 0
+        % \Sum_{t \int [0, T]}
+    \end{equation}
+
+    % TODO: define what s at time "t" is
+    % TODO: define domains somehow, and add an intermediary
+
+
+
+    % \begin{itemize}
+    %     \item $$
+    %     % \item $\mathcal{S}_\text{avg} = \{s_\text{avg} \; | \; s \in S\}$
+    %     % \item ll
+    % \end{itemize}
 \end{definition}
 
 % #definition("constraint problem on a biological model")[
@@ -588,6 +897,8 @@ $\rightarrow$ satisfiability problem $\rightarrow$ optimization problem
 % ]
 %
 % \section{}
+
+\section{Optimization problem}
 
 
 \chapter{Blackbox optimization architecture}
@@ -633,6 +944,7 @@ OpenBox is an efficient open-source system designed for solving gener­
 alized black-box optimization (BBO) problems. It can be used either as 
 a Standalone python package or Online BBO service \cite{li2021openbox}.
 
+\section{Bayesian optimization}
 
 \section{Orchestrator-worker infrastructure}
 
@@ -675,7 +987,8 @@ https://neo4j.com/docs/getting-started/whats-neo4j/
 
 \begin{figure}
     \noindent\makebox[\textwidth]{
-    \includegraphics[width=1.4\textwidth]{./images/reactome-uml.pdf}}
+        \includegraphics[width=1.4\textwidth]{./images/reactome-uml.pdf}
+    }
     % TODO built using the DatabaseObject reference
     \caption{UML model of a portion of the Reactome database} 
     \label{fig:reactome-uml}
@@ -1223,7 +1536,7 @@ https://neo4j.com/docs/getting-started/whats-neo4j/
 %     - 2006 method to handle BNs with maximum 50 nodes
 % 3. BDDs (Binary Decision Diagrams)
 %     - Basically decision trees
-%     - It has efficient operations to compute forward and backwrd reachable states
+%     - It has efficient operations to compute forward and backward reachable states
 %     - To identify attractos it's enough to identify the fix point set in the corrisponding transition system
 % 4. SAT solvers
 %     - The transition relation of the BN is unfolded for a bounded number of steps, and it's presented as a propositional formula

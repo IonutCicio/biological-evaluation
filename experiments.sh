@@ -5,7 +5,7 @@ source .env
 set +a
 
 declare -a surrogate_types=("prf" "lightgbm")
-# declare -a acq_types=("mesmo" "usemo" "parego")
+# declare -a acq_types=("mesmo" "usemo" "parego" "ehvi")
 declare -a acq_types=("mesmo")
 # declare -a acq_optimizers=("local_random" "random_scipy" "scipy_global" "cma_es")
 declare -a acq_optimizers=("local_random")

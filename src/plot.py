@@ -17,7 +17,14 @@ def main2() -> None:
     tasks_of_interest: dict[str, Any] = {
         task["_id"]["$oid"]: task
         for task in tasks
-        if task["create_time"]["$date"].startswith("2025-11-26")
+        if task["_id"]["$oid"] == "69271f4f00d7c938c5171a01"
+        # 69271f4f00d7c938c5171a01
+        # "6927196100d7c938c5171957"
+        # "692718b200d7c938c51718d5"
+        # "692711ee00d7c938c517185d"
+        # "692711ee00d7c938c517185d"
+        # "69270d5b00d7c938c517175c"
+        # if task["create_time"]["$date"].startswith("2025-11-26")
     }
 
     with Path("runhistory.json").open() as file:
@@ -52,12 +59,13 @@ def main2() -> None:
 
         optimal_x.append(len(task_runhistory))
         optimal_y.append(optimal_cost)
-        _ = pylab.plot(non_optimal_x, non_optimal_y, "o", color="gray")
-        _ = pylab.plot(optimal_x, optimal_y, "o-")
-        _ = pylab.ylim(bottom=0, top=20)
-        _ = pylab.savefig(f"docs/{task_id}.svg")
-        _ = pylab.title(label=task["task_name"])
-        _ = pylab.show()
+        if len(optimal_x) > 2:
+            _ = pylab.plot(non_optimal_x, non_optimal_y, "o", color="gray")
+            _ = pylab.plot(optimal_x, optimal_y, "o-")
+            _ = pylab.ylim(bottom=0, top=50)
+            _ = pylab.savefig(f"docs/{task_id}.svg")
+            _ = pylab.title(label=task["task_name"])
+            _ = pylab.show()
 
 
 # def main() -> None:
@@ -209,13 +217,13 @@ def main() -> None:
     _ = pylab.show()
 
     # _ = pylab.savefig(f"docs/{task_id}.svg")
-    # print(best_observation["config"])
-    # print(best_value)
+    print(best_observation["config"])
+    print(best_value)
 
 
 if __name__ == "__main__":
-    # main()
-    main2()
+    main()
+    # main2()
 
 # trial_info["load_duration"]
 # trial_info["start_time"]
