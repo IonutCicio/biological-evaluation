@@ -227,3 +227,8 @@ WITH DISTINCT rle
 MATCH (:Species {taxId: "9606"})<-[:species]-(p:Pathway)-[:hasEvent]->(rle)
 RETURN DISTINCT p
 ORDER BY p.stId
+
+// TODO: surroundedBy
+MATCH path = (n {dbId: 9626247})--(c:Compartment)
+RETURN path
+LIMIT 10

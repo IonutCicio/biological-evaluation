@@ -367,22 +367,36 @@ quantities of species, reactions speeds, compartments sizes etc...
 \begin{definition}[Biochemical network] 
     A biochemical network $G$ is a tuple $(S, R, E, \sigma)$ where 
     \begin{itemize}
-        \item $S = U \cup X \cup Y$ is the set of species of the biochemical network 
+        % TODO: possibly not disjoint
+        \item $S = U \cup X \cup Y$ is the set of species of the biochemical
+            network, where $U, X, Y$ are possibly non disjoint sets s.t.
             \begin{itemize}
                 \item $U$ is the set of input species of the network
                 \item $X$ is the set of species which are neither inputs or outputs 
                 \item $Y$ is the set of output species of the network
             \end{itemize}
         \item $R$ is the set of reactions in the biochemical network
-        \item $E = (E_\text{reactants}, E_\text{products},
-            E_\text{modifiers}^+,  E_\text{modifiers}^-)$ is a tuple with the
-            sets of relations between species and reactions with $E_i \subseteq
-            S \times R$
-        % \item $E = (E_\text{reactants}, E_\text{products},
-        %     E_\text{modifiers}^+, E_\text{modifiers}^-)$ with $E_i \subseteq S
+
+        \item $T = \{ \text{reactant}, \text{product}, \text{modifier}^+,
+            \text{modifier}^- \}$ is the set of relationship types between
+            species and reactions
+
+        \item $E \subseteq S \times R \times T$ is the set of relationships between 
+            species and reactions
+
+        \item $E_t = \{ (s, r) \; | \; (s, r, t) \in E \}$ is the projection of $E$ over $t$
+
+        % TODO: E \subseteq S times R times T where T is the type 
+        % \item $E = E_\text{reactants} \cup E_\text{products} \cup
+        %     E_\text{modifiers}^+ \cup E_\text{modifiers}^- \subseteq S
         %     \times R$ is the set of relations between species and reactions
+
             % TODO: rewrite
-        \item $\sigma : E_\text{reactants} \cup E_\text{products} \rightarrow
+        % \item $E = (E_\text{reactants}, E_\text{products},
+        %     E_\text{modifiers}^+,  E_\text{modifiers}^-)$ is a tuple with the
+        %     sets of relations between species and reactions with $E_i \subseteq
+        %     S \times R$
+        \item $\sigma : E_\text{reactant} \cup E_\text{product} \rightarrow
             \mathbb{N}_+$ is the stoichiometry of the reactants of products of
             the reaction
     \end{itemize}
@@ -392,6 +406,9 @@ The definition abstracts different reaction types. It also allows for a species 
 have multiple roles in a reaction, since in the Reactome pathways database there 
 are some reactions in which, for example, modifiers are also inputs or outputs of the
 reaction. (TODO: reference cypher query or species)
+
+% TODO: Nell'esempio precedente S, R, E sono etc...
+% TODO: rclone drive 
 
 
 % \lstset{
