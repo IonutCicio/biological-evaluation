@@ -363,11 +363,19 @@ they describe only the roles of species in reactions and the structure of the
 network. Other than the stoichiometries there are no informations about typical
 quantities of species, reactions speeds, compartments sizes etc... 
 
+% ["DatabaseObject", "PhysicalEntity", "Trackable", "Deletable", "Polymer"]
+% ["DatabaseObject", "PhysicalEntity", "EntitySet", "Trackable", "Deletable", "DefinedSet"]
+% ["DatabaseObject", "PhysicalEntity", "EntitySet", "Trackable", "Deletable", "CandidateSet"]
+% labels of species
+
 
 \begin{definition}[Biochemical network] 
-    A biochemical network $G$ is a tuple $(S, R, E, \sigma)$ where 
+    A biochemical network $G$ is a tuple $(S, R, C, E, \sigma)$ where 
     \begin{itemize}
         % TODO: possibly not disjoint
+        % TODO: species instead of "physical entity", like, seariously?
+        % TODO: reaction instead of "reaction like event", like, seariously?
+        % TODO: specify the species (in the sense of "human" etc..)
         \item $S = U \cup X \cup Y$ is the set of species of the biochemical
             network, where $U, X, Y$ are possibly non disjoint sets s.t.
             \begin{itemize}
@@ -381,7 +389,7 @@ quantities of species, reactions speeds, compartments sizes etc...
             \text{modifier}^- \}$ is the set of relationship types between
             species and reactions
 
-        \item $E \subseteq S \times R \times T$ is the set of relationships between 
+        \item $E \subseteq S \times R \times T$ is the set of relationships between j
             species and reactions
 
         \item $E_t = \{ (s, r) \; | \; (s, r, t) \in E \}$ is the projection of $E$ over $t$
