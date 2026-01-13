@@ -18,14 +18,70 @@
     body
 }
 
+#set raw(syntaxes: "Cypher.sublime-syntax", lang: "cyp")
+#show raw: set block(
+    fill: luma(250),
+    stroke: .1pt + black,
+    breakable: false,
+    width: 100%,
+    inset: 1em,
+)
+#show raw: set text(font: "LMMonoLt10", size: 10.5pt)
+
 #let listing-def(caption, body) = listing("definition", caption, body)
+
+#let note(body) = box(stroke: 1pt + red, inset: 1em, body)
+
+#page(outline())
+
+// TODO: https://github.com/reactome/sbml-exporter/blob/aeaf341e49f48d408195740e9e319ed6a881f0f2/src/main/java/org/reactome/sbml/rel/ReactionHandler.java#L39
+// TODO: https://github.com/reactome/sbml-exporter/blob/aeaf341e49f48d408195740e9e319ed6a881f0f2/src/main/java/org/reactome/server/tools/sbml/data/DataFactory.java#L33
+https://sbml.org/documents/specifications/level-3/version-1/qual/
+https://github.com/reactome/sbml-exporter?tab=readme-ov-file#known-limitations
+
+
+1. Identifying the Reactome Compartment containing the Reactome PhysicalEntities
+    that appear as SBML species in the resulting SBML model. It is not always
+    clear from the database which Compartment is appropriate; as some
+    PhysicalEntities list multiple Compartments to account for their possible
+    location in different places. This issue is being addressed by the Reactome
+    curators.
+
+2. There are currently no SBOTerms created for any SBML reaction. The
+    information in the ReactomeDB is not fine-grained enough to categorise types
+    of Reactome ReactionLikeEvents. Work is progressing to provide this
+    information.
+
+3. Reactome creates some PhysicalEntities as a set of possible/probably
+    participants in a Reaction. Currently these get encoded as a single SBML
+    species and added as a reactant/product/modifier. This is inaccurate in
+    terms of the intended meaning of an SBML species. Further thought is being
+    given to how to more accurately portray this information in SBML.
+
+#note[Should inconsistent reactions be discarded from the final model?]
+
+#pagebreak()
 
 = Kinetic constants estimation in biochemical networks
 
+\
+
+Let $NN_1 = NN \\ {0}$
+
+
 == Problem definition
 
+#note[Is it "species" a good name? Reactome uses `PhysicalEntity` because to
+    Reactome `Species` indicates the organism studied (human, rat, etc...). In
+    some papers I read the terms "substrate" (when referring to reactions) and
+    "species" are used (I will stick with it).
+]
+
+// TODO: Z for species of interest
+// TODO: possibility to limit kinetic constnts if reaction is in DB
+
 #listing-def[Biochemical network][
-    A biochemical network $G$ is a tuple $(S, R, E, nu)$ where
+    A biochemical network $G$ is a tuple $(S, R, E, nu, C)$ where
 
     - $S = U union X union Y$ is the set of *species* of the biochemical network
         where
@@ -46,18 +102,11 @@
             stoichiometry functions for the reactants and products of the
             reactions
 
-    // TODO: page 5 A reac- tion is always catalysed by a specific enzyme; we describe isoenzymes by distinct reactions.
-    // TODO: mi conviene modellare le "costanti di equilibrio" e le "velocità con cui si raggiungono piuttosto che k_1 e k_2?
-    // Beh, in questo modo posso dire: si, tu devi andare più veloce o più lento
-    // Oppure, si, tu devi essere di più e tu di meno
+    - $C$ is the set of compartments in which the species are located
+        - $f_C : S -> C$ is the function that determines the compartment of each
+            species
 
-    // TODO: this is meant to handle species which are both reactants and products of reactions
-
-    // - $nu_"reactant" : E_"reactant" -> NN_1$ is the stoichiometry function
-    //     for the reactants of the reactions
-    //
-    // - $nu_"product" : E_"product" -> NN_1$ is the stoichiometry function for
-    //     the products of the reactions
+            #note[ not necessary for kinetic laws, necessary for simulation]
 
     with
 
@@ -66,208 +115,83 @@
     - $E_t = {(s, r) | (s, r, t) in E}$
         is the projection of $E$ over $t in T$
 
-    - $E_"modifier" = E_("enzyme") union E_("inhibitor")$
-
-    // - $nu : S times R times {"reactant", "product"} -> NN_1$ is the
-    //     stoichiometry function
+    #note[Reactions have at most 1 enzyme]
+    // TODO: there is at most 1 enzyme per reaction!
 
 ]
 
-\
-
-$
-    S -> P
-$
-
-$
-    limits(v)^dot = (k_2 dot.c E dot.c S) / (S + (k_(-1) + k_2) / k_1)
-$
-
-\
-
-$
-    "sia" S_1 + S_2 -> P "una reazione con enzima" E
-$
-
-$
-    limits(v)^dot = (k_2 dot.c [E] dot.c [S_1 dot.c S_2]) / ([S_1 dot.c S_2] + (k_(-1) + k_2) / k_1)
-$
-
-#align(center)[ dove $[S]$ è la concentrazione della species S]
-
-
-\
-
-```cyp
-MATCH (r:ReactionLikeEvent)
-WHERE EXISTS {
-    MATCH (r)--(c1:CatalystActivity), (r)--(c2:CatalystActivity)
-    WHERE c1 <> c2
-}
-RETURN COUNT (DISTINCT r) // 17
-```
-
-```cyp
-MATCH path = ({dbId: 983702})--(:CatalystActivity)
-RETURN path
-```
-
-
-// TODO: is there a reaction which takes an enzyme (catalyst activity) and gives out a complex containing the enzyme?
-// TODO: again the question, is there something that is both catalyst and input of reaction?
-// TODO: is this the case for really reversible reactions???? (The enzyme may catalyze the reaction in both directions, pag 62, 4.25).
-// TODO: c'è qualcosa con più di un catalyst activity?
-
-Let $NN_1 = NN \\ {0}$
-
-One enzyme molecule can catalyze thousands of reactions per second (this
-so-called turn­ over number ranges from 102 to 107 s 1). Enzyme cataly­ sis leads
-to a rate acceleration of about 106 up to 1012-fold compared to the
-noncatalyzed, spontaneous reaction.
-
-The turnover number (kcat) of an enzyme is the maximum number of substrate
-molecules one enzyme active site can convert into product per second, indicating
-its catalytic efficiency, calculated as Vmax (maximum reaction velocity) divided
-by the total enzyme concentration. It shows how fast an enzyme works, with
-values ranging from less than one to millions of molecules per second, and is
-key to understanding how effectively an enzyme processes substrates
-
-$10^2 "to" 10^7 "reactions"/s$
-
-Chemical and biochemical kinetics rely on the assumption that the reaction rate
-v at a certain point in time and space can be expressed as a unique function of
-the concentrations of all substances at this point in time and space.
-
-Classical enzyme kinetics assumes for sake of simplicity a spatial homogeneity
-(the “well-stirred” test tube) and no direct dependency of the rate on time:
-
-*time-invariant* system
-
-concentration: always based on a volume
-- $n / V space "quantity" / "litre"$
-
-
-// TODO: S -> = simple decay
-
-== Assumptions
-
-=== Assumption 1 (quasi-equilibrium of E and ES)
-
-Michaelis and Menten [5] considered a quasi-equilibrium between the free enzyme
-and the enzyme–substrate complex, meaning that the reversible conversion of $E$
-and $S$ to $"ES"$ is much faster than the decomposition of $"ES"$ into $E$ and
-$P$, or in terms of the kinetic constants, that is,
-
-$k_1, k_(-1) >> k_2$
-
-- (possibile assunzione "quasi-equilibrium" di enzima-libero e complesso) // TODO:
-enzima-specie "la reazione regolata da un enzima, che produce il complesso
-"enzima - specie" è molto più lenta della reazione che prende il complesso e ci
-fa cose!"
-
-=== Assumption 2 (concentration of ES is constant)
-
-This works only if $S(t = 0) >> E$ (because the turnover rate of $E$ is kinda
-big, thus $(dif"ES") / (dif t) = 0$
-
 #pagebreak()
 
-Given a biochemical network $G = (S, R, , nu)$ let @modular-rate-laws be the
-general form of a modular rate law that describes the kinetics of reaction
-$r in R$.
+=== Rate laws
 
-=== Stuff
+Given a biochemical network $G = (S, R, E, nu, C)$
 
-1. Draw a wiring diagram of all steps to consider (e.g., Eq. (4.11)). It
-    contains all substrates and products ($S$ and $P$) and $n$ free or bound
-    enzyme species
-($E$ and $"ES"$).
-2. The right sides of the ODEs for the concentrations changes sum up the rates
-    of all steps leading to or away from a certain substance (e.g., Eqs.
-    (4.12)–(4.15)). The rates follow mass action kinetics (Eq. (4.3)).
-// OK! So basically, I have the normal rates of the kinetics
-3. The sum of all enzyme-containing species is equal to the total enzyme
-    concentration $E_"total"$ (the right side of all differential equations for
-    enzyme species sums up to zero). This constitutes one equation (ok, but what
-    if enzymes are produced?)
-
-4. The assumption of quasi-steady state for $n - 1$ enzyme species (i.e.,
-    setting the right sides of the respective ODEs equal to zero) together with
-    (3) result in $n$ algebraic equations for the concentrations of the $n$
-    enzyme species.
-
-5. The reaction rate is equal to the rate of product formation (e.g., Eq.
-    (4.16)). Insert the respective concen­ trations of enzyme species resulting
-    from (4).
-
-#pagebreak()
-
-// TODO take a reaction which is reversible, check catalysts!
-
-// TODO: effector = regulator... (inhibitor and activator, vs positive and negative)
-// TODO: ah, are there reactions with multiple "catalyst activity!"???
-
-// TODO: cell designer to open SBML file
-// TODO: copasi for simulations
-// TODO: vcell
-
-// 4.1.6
-// Generalized Mass Action Kinetics
-
-// TODO: other than project, define projection while keeping information? Nah
-
-// Let's denote the concentration with [e]
+Let $r$ be a reaction s.t. $r in R_"reversible"$
 
 $
-    v_r = E_"total" dot.c f_"reg" dot.c T / (D + D_"reg")
+    v_r = k_+ product_((s, r) \ in \ E_"reactant") [s]^(nu_"reactant"(s, r))
+    - k_- product_((s, r) \ in \ E_"product") [s]^(nu_"product"(s, r))
+$ <mass-action-rule>
+
+If $r in R \\ R_"reversible"$, then the rate rule can be simplified to
+
+$
+    v_r = k_+ product_((s, r) \ in \ E_"reactant") [s]^(nu_"reactant"(s, r))
+$ <mass-action-rule>
+
+If an enzyme is involved in a reaction, let @modular-rate-laws be the general
+form of a modular rate law that describes the kinetics of reaction $r in R$ with
+$EE$ s.t. $(EE, r) in E_"enzyme"$.
+
+$
+    v_r = [EE] dot.c f_"reg" dot.c T / (D + D_"reg")
 $ <modular-rate-laws>
+
 
 where
 
-$
-    E_"total" = sum_((s, r) \ in \ E_"enzyme") [s] + "complexes that contain the enzyme??"
-$
+// TODO: could be useful to add "r" to the contants only in the satisfiability problem definition
+// in rate laws discussion ignore the "r"
 
 $
     f_"reg" =
-    product_((s, r) in E_"enzyme") [s]^(n^s_r) / (K^s_r + [s]^(n^s_r))
-    product_((s, r) in E_"inhibitor") K^s_r / (K^s_r + [s]^(n^s_r))
+    product_((s, r) \ in \ E_"activator") [s]^(n_s) / (K_s + [s]^(n_s))
+    product_((s, r) \ in \ E_"inhibitor") K_s / (K_s + [s]^(n_s))
 $
 
 $
     T =
-    k^"for"_"cat" limits(product)_((s, r) \ in \ E_"reactant") ([s] / K^r_(m, s))^(nu_"reactant" (s, r))
-    - k^"back"_"cat" limits(product)_((s, r) \ in \ E_"product") ([s] / K^r_(m, s))^(nu_"product" (s, r))
+    k^"for"_"cat" limits(product)_((s, r) \ in \ E_"reactant") ([s] / K_(m, s))^(nu_"reactant" (s, r))
+    - k^"back"_"cat" limits(product)_((s, r) \ in \ E_"product") ([s] / K_(m, s))^(nu_"product" (s, r))
 $
 
+The denominator can be one of the following
 
-Power-law modular rate law: D = 1 (such as mass action kinetics)
-// TODO: mass-action -> power-law (generalization of mass action, why is it a generalization? how does it work?)
+1. Power-law modular rate law: $D = 1$ (such as mass action kinetics)
+
+#[
+    #set math.equation(numbering: none)
+    2. Common modular rate law
+    $
+        D = product_( (s, r) \ in \ E_"reactant" ) (1 + sum_(n = 1)^(nu_"reactant" (s, r)) ([s] / K_(m, s))^n )
+        + product_( (s, r) \ in \ E_"product" ) (1 + sum_(n = 1)^(nu_"product" (s, r)) ([s] / K_(m, s))^n )
+        - 1
+    $
+]
+
+3. Simultaneous binding modular rate law
 $
-    D_1 = 1
+    D = product_( (s, r) \ in \ E_"reactant" ) (1 + [s] / K_(m , s))^(nu_"reactant" (s, r)) product_( (s, r) \ in \ E_"product" ) (1 + [s] / K_(m , s))^(nu_"product" (s, r))
 $
 
-Common modular rate law
-$
-    D_2 = product_( (s, r) \ in \ E_"reactant" ) (1 + sum_(n = 1)^(nu_"reactant" (s, r)) ([s] / K_(m, s))^n ) \
-    + product_( (s, r) \ in \ E_"product" ) (1 + sum_(n = 1)^(nu_"product" (s, r)) ([s] / K_(m, s))^n )
-$
-
-Simultaneous binding modular rate law
-$
-    D_3 = product_( (s, r) \ in \ E_"reactant" ) (1 + [s] / K_(m , s))^(nu_"reactant" (s, r)) product_( (s, r) \ in \ E_"product" ) (1 + [s] / K_(m , s))^(nu_"product" (s, r))
-$
-
-Direct binding modular rate law:
-
+4. Direct binding modular rate law:
 $
     D_4 = 1
-    + product_((s, r) in E_"reactant") ([s] / K_(m, s)^r)^(nu_"reactant" (s, r))
-    + product_((s, r) in E_"product") ([s] / K_(m, s)^r)^(nu_"product" (s, r))
+    + product_((s, r) in E_"reactant") ([s] / K_(m, s))^(nu_"reactant" (s, r))
+    + product_((s, r) in E_"product") ([s] / K_(m, s))^(nu_"product" (s, r))
 $
 
-Force-dependent modular rate law:
-
+5. Force-dependent modular rate law:
 $
     D_5 = sqrt(
         product_( (s, r) \ in \ E_"reactant" ) (1 + [s] / K_(m , s))^(nu_"reactant" (s, r)) product_( (s, r) \ in \ E_"product" ) (1 + [s] / K_(m , s))^(nu_"product" (s, r))
@@ -275,45 +199,13 @@ $
 $
 
 
-// TODO: how many species are involved in a reaction on average? This can determine how the law scales
-
-// https://pmc.ncbi.nlm.nih.gov/articles/PMC1781438/
-
-// \
-
-// #line(stroke: .1pt, length: 100%)
-
-// \
-
-// === Kinetics
-
-// #align(center, box(width: auto)[
-//     $
-//         v = E_"total" dot.c
-//         // (
-//         product_((s, r) in E_"enzyme") s^(n^s_r) / (K^s_r + s^(n^s_r))
-//         product_((s, r) in E_"inhibitor") K^s_r / (K^s_r + s^(n^s_r))
-//         // f_"reg"
-//         // )
-//         dot.c
-//         (
-//         k^"for"_"cat" limits(product)_((s, r) in E_"reactant") (s / K_(m, s))^(nu_"reactant" (s, r))
-//         - k^"back"_"cat" limits(product)_((s, r) in E_"product") (s / K_(m, s))^(nu_"product" (s, r))
-//         ) /
-//         D
-//     $
-// ])
-
-// product_i (1 + sum_(a = 1)^i (S_i / K_(m, S_i))^a)
-// + product_j (1 + sum_(a = 1)^j (P_j / K_(m, P_j))^a)
-// - 1
-
-// k^"for"_"cat" product_i (S_i / K_(m, S_i))^(n_(-i))
-// - k^"back"_"cat" product_j (P_j / K_(m, P_j))^(n_j)
-
 \
 
-// X, D, C
+#note[
+    The section below needs to be revisited, constants are not the same for all
+    reactions! And better names should be given in order to describe the
+    behaviour
+]
 
 #listing-def[Dynamic biological model][
     Given a biochemical network $G = (S, R, E, nu)$ let $B = (G′, cal(K))$ be
@@ -340,7 +232,6 @@ $
                 )
             $
 
-    // TODO: what if the reaction is not reversible
     Then $cal(K)$, the set of constants, can be defined on $G'$ as
     $
         cal(K) = & { k^"for"_("cat", r) | r in R' } union \
@@ -356,81 +247,62 @@ $
     - $n_s^r$ the hill coefficient of modifier $s$ in reaction $r$
 ]
 
-// Approximation: An "irreversible" reaction in biological networks is often modeled as a very fast forward reaction with a negligible reverse rate constant, which fits within the convenience kinetics framework by making the product release term dominant or the reverse rate effectively zero.
-
-// Focus on Flux: By emphasizing the saturation curve and steady-state behavior (like quasi-steady-state), it captures how enzyme activity changes with substrate concentration, mimicking unidirectional flow in metabolic pathways.
-
-// TODO: compute how many constants does a specific model have
-
-// TODO: is there a species which is both inhibitor and enzyme in the same reaction?
-// TODO: does cineca slurm support slurm rest api? Nah, it doesnt, it must enable job submission from node
-
-
-// "modifier"^+
-
-// - $nu : E_r -> NN_+$
-// - $nu : E_p -> NN_+$
-// - $nu : E_r union E_p -> NN_1$ is the *stoichiometry* of the reactants of
-//     products of the reaction
-
-// is the set of relationship types between species and reactions
-// , with $T$ the relationship type
-
-
 #pagebreak()
 
-== Convenience Kinetics and Modular Rate Laws
+// TODO: mantenere i rapporti fra le concentrazioni delle specie nel set
 
-#set math.equation(numbering: none)
-
-#align(center)[#box(width: auto)[
-        $
-            v = E_"total" dot.c f_"reg" dot.c
-            (k^"for"_"cat" product_i (S_i / K_(m, S_i))^(n_(-i)) - k^"back"_"cat" product_j (P_j / K_(m, P_j))^(n_j)) /
-            (
-            product_i (1 + sum_(a = 1)^i (S_i / K_(m, S_i))^a)
-            + product_j (1 + sum_(a = 1)^j (P_j / K_(m, P_j))^a)
-            - 1
-            )
-        $
-    ]
-]
-
-/ $v$: amount of substance that is converted in the reaction
-/ $E_"total"$: ? oh, wait, wtf????? Is it computable? $E_"total"$ is the enzyme
-    concentration
-/ $f_"reg"$: ?
-/ $k^"for"_"cat"$: constant of reaction moving "forward" when the reaction is
-    reversible (why cat?)
-/ $k^"back"_"cat"$: turnover rate!!! (same for forward)
-/ $K_(m, S_i), K_(m, P_j)$: constant which somehow reduces the probability of
-    reaction of that species, what does that $m$ stand for?
-
-$
-    f_"reg" = cases(
-        1 quad & "if no regulation is present",
-        product (M/(K_A + M) dot.c K_I / (K_I + M)) quad & "otherwise (resp. positive and negative regulation)"
-    )
-$
-where
-- $M$ is the concentration of the modifier
-- $K_A, K_I$ measured in concentration units (values denote concentrations, at
-    which the inhibitor or activator has its half-maximal effect)
-
-now:
-- the denominator should somehow "slow down" the reaction... right?
-    - well, in the worst case the denominator is exactly 1
-- is it > or < of 1? It must be at least 1
-- what is the domain of $K_(m, S)$? Is it >= 0? Yeah, it must be.
-- Where are the modifiers? Are the modifiers in $E_"total"$?
-
-$
-    K_V = (K^"for"_"cat" dot.c K^"back"_"cat")^(1/2)
-$
-
-$ E_"total" $
-pare pericolosa, perché è la somma della concentrazione degli enzimi + la somma
-del prodotto
+// == Convenience Kinetics and Modular Rate Laws
+//
+// #set math.equation(numbering: none)
+//
+// #align(center)[#box(width: auto)[
+//         $
+//             v = E_"total" dot.c f_"reg" dot.c
+//             (k^"for"_"cat" product_i (S_i / K_(m, S_i))^(n_(-i)) - k^"back"_"cat" product_j (P_j / K_(m, P_j))^(n_j)) /
+//             (
+//             product_i (1 + sum_(a = 1)^i (S_i / K_(m, S_i))^a)
+//             + product_j (1 + sum_(a = 1)^j (P_j / K_(m, P_j))^a)
+//             - 1
+//             )
+//         $
+//     ]
+// ]
+//
+// / $v$: amount of substance that is converted in the reaction
+// / $E_"total"$: ? oh, wait, wtf????? Is it computable? $E_"total"$ is the enzyme
+//     concentration
+// / $f_"reg"$: ?
+// / $k^"for"_"cat"$: constant of reaction moving "forward" when the reaction is
+//     reversible (why cat?)
+// / $k^"back"_"cat"$: turnover rate!!! (same for forward)
+// / $K_(m, S_i), K_(m, P_j)$: constant which somehow reduces the probability of
+//     reaction of that species, what does that $m$ stand for?
+//
+// $
+//     f_"reg" = cases(
+//         1 quad & "if no regulation is present",
+//         product (M/(K_A + M) dot.c K_I / (K_I + M)) quad & "otherwise (resp. positive and negative regulation)"
+//     )
+// $
+// where
+// - $M$ is the concentration of the modifier
+// - $K_A, K_I$ measured in concentration units (values denote concentrations, at
+//     which the inhibitor or activator has its half-maximal effect)
+//
+// now:
+// - the denominator should somehow "slow down" the reaction... right?
+//     - well, in the worst case the denominator is exactly 1
+// - is it > or < of 1? It must be at least 1
+// - what is the domain of $K_(m, S)$? Is it >= 0? Yeah, it must be.
+// - Where are the modifiers? Are the modifiers in $E_"total"$?
+//
+// $
+//     K_V = (K^"for"_"cat" dot.c K^"back"_"cat")^(1/2)
+// $
+//
+// $ E_"total" $
+// pare pericolosa, perché è la somma della concentrazione degli enzimi + la somma
+// del prodotto
 
 // A turnover rate (or number, kcat) in a reaction, especially with enzymes or
 // catalysts, measures how efficiently a single active site converts substrate
@@ -442,9 +314,7 @@ del prodotto
 // when is a reaction half-maximal? When it reaches 50% of its maximum response or rate.
 // K_m: substrate concentration yielding half of the maximum velocity  V_max / 2
 // half-maximal if the reaction products are absent
-
-
-#pagebreak()
+// #pagebreak()
 
 #listing-def[Biological model satisfiability problem][
     Given a biological model $B = (G, cal(K))$ and a let $cal(S)$ be the set of
@@ -452,7 +322,6 @@ del prodotto
     $cal(S) = {s | s in S}$ and $S_"avg" = {s_"avg" | s in S}$ the set of
     average concentrations of the species, $T in RR^+$ the time horizon,
     $phi in [0, 1]$ the following constraints must hold:
-    // TODO: maybe time horizon >= 0
     #[
         #set math.equation(numbering: "(1)")
 
@@ -465,41 +334,22 @@ del prodotto
 
         $ forall s in cal(S)_"avg" quad s (phi dot.c T) - s(T) = 0 $
     ]
-    // TODO: what other constraints do I have to handle?
-    // - I handle the 0 <= s <= 1
-    // - I handle the modifiers concentrations
-    // - I handle the the transitory
-    // - TODO: I have to handle the mythical "target values" or something ("aderenza" baby)
 ]
 
 #listing-def[Optimization problem][
 ]
 
-// #pagebreak()
-
-
 #pagebreak()
 
 #set page(margin: 1in)
-#set raw(syntaxes: "Cypher.sublime-syntax", lang: "cyp")
-#show raw: set block(
-    fill: luma(250),
-    stroke: .1pt + black,
-    breakable: false,
-    width: 100%,
-    inset: 1em,
-)
-#show raw: set text(font: "LMMonoLt10", size: 10.5pt)
 
-// TODO: rename into something better, like "Appendix" or "Interesting stuff"
-= Queries
+= Reactome modeling quirks
 
-== Multiple compartments per species
+== Species with multiple compartments
 
 Because the functions of biologic molecules critically depend on their
 subcellular locations, chemically identical entities located in different
-compartments are represented as distinct physical entities. (TODO: this is a
-citation)
+compartments are represented as distinct physical entities. (Reactome paper)
 
 \
 
@@ -519,6 +369,26 @@ citation)
         Entities connected to multiple compartments
     ],
 )
+
+\
+
+#figure(
+    ```
+    MATCH (:PhysicalEntity)-[relation]-(:Compartment)
+    RETURN DISTINCT type(relation)
+    ```,
+    caption: [
+        Types of relation between physical entities and compartments:
+        `["compartment", "includedLocation", "goCellularComponent"]`
+    ],
+)
+
+Complexes with components that span multiple cellular locations should specify
+one primary location as the compartment and the location of the other components
+will be automatically filled into the “includedLocation” attribute during the
+database release process. For example, a transmembrane complex with components
+in the extracellular space, plasma membrane, and cytosol would have plasma
+membrane specified as the compartment.
 
 \
 
@@ -567,7 +437,6 @@ citation)
 \
 
 
-
 #figure(
     ```
     MATCH (physicalEntity:PhysicalEntity)
@@ -591,12 +460,103 @@ citation)
     ],
 )
 
+*EntitySet [superclass]*
+- Used to maintain logical integrity of data model, not used for manual
+    annotation. Two or more PhysicalEntities grouped because of a shared
+    molecular feature or function. The superclass for CandidateSet and
+    DefinedSet. While sets are, by default, homogeneous (members having the same
+    subclass of PhysicalEntity), they are not required to be. For example, the
+    defined set platelet alpha granule contents contains, as members,
+    EntitiesWithAccessionedSequences, Complexes and Sets.
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)-[:input|output]-(:EntitySet)
+    RETURN COUNT (DISTINCT reaction) // 22576
+    ```,
+)
+
+*CandidateSet*
+- A collection of physical entities that are functionally indistinguishable for
+    the purpose of Reactome annotation, some of which are well-characterized
+    (the “members” of the set) and some of which are incompletely characterized
+    (the “candidates” of the set), as judged by the curator who assembles the
+    set and the outside expert reviewers who evaluate it. Members of a set are
+    related by an "OR" function. That is, either one member OR another member
+    can participate in a reaction.
+- Sets may be ordered or unordered as specified in the isOrdered attribute. A
+    specific member of an ordered set has a correspondence with a specific
+    member of another ordered set, as specified by their positions within the
+    sets. For example, consider an ordered set containing substrate1 and
+    substrate2 that reacts to yield an ordered set containing product1 and
+    product2. In this case, substrate1 will yield product1 and substrate2 will
+    yield product2. In the case of unordered sets, any member in an input set
+    can correspond to any member in an output set. Sets in Reactome are
+    considered ordered by default.
+
+
+*DefinedSet*
+- A collection of well-characterized physical entities that are functionally
+    indistinguishable for the purpose of Reactome annotation, e.g., a collection
+    of isoforms of a protein that all mediate the identical metabolic reaction.
+    A set is formally a list of instances linked by logical ORs. Sets may be
+    ordered or unordered as specified in the isOrdered attribute. A specific
+    member of an ordered set has a correspondence with a specific member of
+    another ordered set, as specified by their positions within the sets. For
+    example, consider an ordered set containing substrate1 and substrate2 that
+    reacts to yield an ordered set containing product1 and product2. In this
+    case, substrate1 will yield only product1 and substrate2 will yield only
+    product2. In the case of unordered sets, any member in an input set can
+    correspond to any member in an output set. Sets in Reactome are considered
+    ordered by default.
+
+#figure(
+    ```
+    MATCH (physicalEntity:PhysicalEntity)
+    WHERE
+        EXISTS {
+            MATCH
+                (physicalEntity)-[:compartment]-(compartment1:Compartment),
+                (physicalEntity)-[:compartment]-(compartment2:Compartment)
+            WHERE
+                compartment1 <> compartment2
+                AND NOT EXISTS {
+                    MATCH (compartment1)-[:surroundedBy]-(compartment2)
+                }
+        }
+        AND EXISTS {
+            MATCH (reaction:ReactionLikeEvent)--(physicalEntity)
+        }
+    RETURN COUNT(DISTINCT physicalEntity) // 310
+    ```,
+    caption: [
+        Set of entities with multiple compartments connected to at least a
+        reaction
+    ],
+)
+
+#figure(
+    ```
+    MATCH
+        path1 = (reaction {dbId: 177941})-[:input|output]-(entity1:PhysicalEntity)
+    OPTIONAL MATCH path2 = (reaction)--(:CatalystActivity)--(:PhysicalEntity)
+    OPTIONAL MATCH path3 = (entity1)--(:Compartment)
+    RETURN path1, path2, path3
+    ```,
+    caption: [
+        Example reaction that involves entities with multiple compartments
+    ],
+)
+
+#note[
+    If a reaction involves entity sets, then create a new reaction for each
+    compartment! Or instantiate the reaction for all the combinations of species
+    in the set!
+]
+
+#pagebreak()
 
 == Reactions with multiple compartments
-
-// TODO: some reactions have compartments
-// TODO: some reactions have multiple compartments, lol... sadge
-// TODO: it does matter, sadly
 
 #figure(
     ```
@@ -611,6 +571,7 @@ citation)
     RETURN COUNT (DISTINCT reaction) // 36322 (out of 93672)
     ```,
     caption: [
+        Reactions connected to multiple compartments
     ],
 )
 
@@ -630,7 +591,7 @@ citation)
     RETURN COUNT (DISTINCT reaction) // 20974
     ```,
     caption: [
-
+        Reactions connected to multiple compartments excluding "surroundedBy"
     ],
 )
 
@@ -654,9 +615,12 @@ citation)
     ],
 )
 
-// compartment optional on reaction!
+The fact that reactions are connected to multiple compartments is not a problem!
+In SBML compartments are optional for reactions, as the simulators should be
+able to deduce the compartment of the reaction based on the compartment of the
+substrate.
 
-https://sbml.org/documents/faq/ // compartment
+https://sbml.org/documents/faq/
 
 https://raw.githubusercontent.com/combine-org/combine-specifications/main/specifications/files/sbml.level-3.version-2.core.release-2.pdf
 
@@ -687,13 +651,14 @@ https://raw.githubusercontent.com/combine-org/combine-specifications/main/specif
     ```,
 )
 
+#pagebreak()
+
 == Species which are both inputs and outputs of a reaction
 
-// TODO: what happens when a species is both input and output of a reaction?
 ```
-MATCH (reaction:ReactionLikeEvent)-[:input]->(p:PhysicalEntity)
+MATCH (reaction:ReactionLikeEvent)-[:input]->(entity:PhysicalEntity)
 WHERE EXISTS {
-    MATCH (n)-[:output]->(p)
+    MATCH (reaction)-[:output]->(entity)
 }
 RETURN COUNT(n) // 1062
 ```
@@ -749,13 +714,26 @@ AND NOT n.displayName STARTS WITH 'Electron transfer'
 RETURN COUNT (n) // 12
 ```
 
+```cyp
+MATCH (r:ReactionLikeEvent)
+WHERE EXISTS {
+    MATCH (r)--(c1:CatalystActivity), (r)--(c2:CatalystActivity)
+    WHERE c1 <> c2
+}
+RETURN COUNT (DISTINCT r) // 17
+```
+
+```cyp
+MATCH path = ({dbId: 983702})--(:CatalystActivity)
+RETURN path
+```
+
 
 \
 
-// Di queste 12, 11 sono
-// - "CYP19A1 hydroxylates ANDST to E1"
-// e una è
-// - "Prdm9 Trimethylates Histone H3 (murine, bovine)"
+Of these 12:
+- 11: "CYP19A1 hydroxylates ANDST to E1"
+- 1: "Prdm9 Trimethylates Histone H3 (murine, bovine)"
 
 // GenomeEncodedEntity
 // Any informational macromolecule (DNA, RNA, protein) or entity derived from one by
@@ -765,16 +743,10 @@ RETURN COUNT (n) // 12
 // GenomeEncodedEntity is not required to have a reference entity, though a reference to an entity
 // in a database can be specified in the crossReference attribute.
 
-// TODO if a physicalEntity is a Complex and a component of the complex mediates the molecularFunction,
-// that component should be identified as the activeUnit of the CatalystActivity.
 
+#pagebreak()
 
-== Enzymes which are both positive and negative regulators
-// TODO: If the Regulator is a Complex, the specific Complex component(s) that play the regulatory role
-// can be specified as activeUnit(s) of the NegativeRegulation instance.
-
-// https://pitkley.dev/blog/atom-grammar-to-sublime-syntax/
-// TODO: can something be both a an enzyme and an inhibitor in a reaction
+== Modifiers which are both positive and negative regulators
 
 Reactions that are driven by an enzyme are described as requiring a catalyst
 activity, modeled in Reactome by linking the macromolecule that provides the
@@ -838,6 +810,139 @@ RETURN path1, path2
 - top ones are all in either _"Mus musculus"_ or in _"Rattus norvegicus"_
 - bottom ones are basically the same reaction, but inferred to multiple species
 
+== Enzymes which are substrate too
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)
+    WHERE
+        EXISTS {
+            MATCH
+                (reaction)--(:CatalystActivity)--(entity:PhysicalEntity),
+                (reaction)--(entity)
+        }
+    RETURN COUNT(DISTINCT reaction) // 10650
+    ```,
+    caption: [Enzymes which are also involved in the reaction],
+)
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)
+    WHERE
+        EXISTS {
+            MATCH
+                (reaction)--(:CatalystActivity)--(entity:PhysicalEntity),
+                (reaction)-[:input|output]-(entity)
+        }
+    RETURN COUNT(DISTINCT reaction) // 10639
+    ```,
+    caption: [Enzymes which are either inputs or outputs of the reaction],
+)
+
+== Reactions with multiple enzymes
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)
+    WHERE EXISTS {
+        MATCH
+            (reaction)--(:CatalystActivity)--(entity1:PhysicalEntity),
+            (reaction)--(:CatalystActivity)--(entity2:PhysicalEntity)
+        WHERE
+            entity1 <> entity2
+    }
+    RETURN COUNT(DISTINCT reaction) // 10916
+    ```,
+    caption: [
+        Reations with multiple enzymes (this is given by complexes, I have to
+        consider only the active unit!)
+    ],
+)
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)
+    WHERE EXISTS {
+        MATCH
+            (reaction)--(activity1:CatalystActivity),
+            (reaction)--(activity2:CatalystActivity)
+        WHERE
+            activity1 <> activity2
+    }
+    RETURN COUNT(DISTINCT reaction) // 17
+    ```,
+    caption: [
+        Reactions with multiple CatalystActivity
+    ],
+)
+
+#note[For this one can just create a new reaction for each different enzyme!]
+
+== On the reversibility of reactions
+
+#figure(
+    ```
+    MATCH
+        path = (r1 {dbId: 1482894})-[:reverseReaction]-(r2),
+        path2 = (r1)--(:PhysicalEntity),
+        path3 = (r2)--(:PhysicalEntity)
+    RETURN path, path2, path3
+    ```,
+    caption: [
+        On the reversibility of reactions
+    ],
+)
+
+#figure(
+    ```
+    MATCH (:ReactionLikeEvent)-[relation]-(:ReactionLikeEvent)
+    RETURN DISTINCT type(relation)
+    ```,
+    caption: [
+        List of relations between `ReactionLikeEvent`s
+        `["precedingEvent", "inferredTo", "normalReaction" "reverseReaction"]`
+
+    ],
+)
+
+*FailedReaction*
+- A FailedReaction instance is a step in a disease process that is directly
+    affected by a loss-of-function (LoF) mutation (germline or somatic). This
+    type of disease event has its normal ReactionLikeEvent counterpart (the
+    reaction mediated by the un-mutated gene product) specified at its
+    normalReaction attribute and is represented as having inputs (an abnormal
+    physicalEntity plus any wild-type entities that are inputs in the normal
+    reaction), but no outputs. FailedReaction instances are labeled with disease
+    term(s) that are used to populate the disease attribute of the associated
+    abnormal PhysicalEntity (GenomeEncodedEntitiy, Complex or EntitySet).
+
+*inferredFrom*
+- Points to the event or entity in another species that this event/entity has
+    been inferred from. If the inference is based on computation only, this is
+    indicated under evidenceType (= IEA).
+
+#figure(
+    ```
+    MATCH (reaction:ReactionLikeEvent)-[:reverseReaction]-(:ReactionLikeEvent)
+    RETURN COUNT(DISTINCT reaction) // 224
+    ```,
+)
+
+// TODO: reactions marked as "reversible" are just the ones where the catalyst is involved?
+// TODO: is there a reaction which has a set and a non set to its sides?
+// TODO: create a "mega compartment" that represents those 3?
+// TODO: some reactions have compartments
+// TODO: some reactions have multiple compartments, lol... sadge
+// TODO: it does matter, sadly
+// TODO: what happens when a species is both input and output of a reaction?
+// TODO if a physicalEntity is a Complex and a component of the complex mediates the molecularFunction,
+// that component should be identified as the activeUnit of the CatalystActivity.
+// TODO: can something be both a an enzyme and an inhibitor in a reaction
+// TODO: If the Regulator is a Complex, the specific Complex component(s) that play the regulatory role
+// can be specified as activeUnit(s) of the NegativeRegulation instance.
+
+// TODO: do all this behaviours stem from Sets?
 // TODO: https://jjj.biochem.sun.ac.za/
 // TODO: https://www.ebi.ac.uk/biomodels/
 // TODO: https://academic.oup.com/nar/article/31/1/248/2401298
@@ -877,11 +982,198 @@ RETURN path1, path2
 // TODO: non è che la direzione inversa ha bisogno di catalizzatori !!!! ?
 // TODO: how many reactions are not reversible in Reactome?
 // TODO: In the enzyme kinetics term \(k_{cat}\) (catalytic rate constant), the "cat" part stands for catalytic, referring to the enzyme's ability to catalyze (speed up) a reaction
+// TODO: page 5 A reac- tion is always catalysed by a specific enzyme; we describe isoenzymes by distinct reactions.
+// TODO: mi conviene modellare le "costanti di equilibrio" e le "velocità con cui si raggiungono piuttosto che k_1 e k_2?
+// Beh, in questo modo posso dire: si, tu devi andare più veloce o più lento
+// Oppure, si, tu devi essere di più e tu di meno
+// TODO: this is meant to handle species which are both reactants and products of reactions
+// TODO: S -> = simple decay
+// TODO: is there a reaction which takes an enzyme (catalyst activity) and gives out a complex containing the enzyme? NOPE!
+// TODO: again the question, is there something that is both catalyst and input of reaction?
+// TODO: is this the case for really reversible reactions???? (The enzyme may catalyze the reaction in both directions, pag 62, 4.25).
+// TODO: c'è qualcosa con più di un catalyst activity?
+// TODO: rename into something better, like "Appendix" or "Interesting stuff"
+// TODO take a reaction which is reversible, check catalysts!
+// TODO: effector = regulator... (inhibitor and activator, vs positive and negative)
+// TODO: ah, are there reactions with multiple "catalyst activity!"???
+// TODO: cell designer to open SBML file
+// TODO: copasi for simulations
+// TODO: vcell
+// 4.1.6
+// Generalized Mass Action Kinetics
+// TODO: other than project, define projection while keeping information? Nah
+// Let's denote the concentration with [e]
 
-```
-MATCH
-    path = (r1 {dbId: 1482894})-[:reverseReaction]-(r2),
-    path2 = (r1)--(:PhysicalEntity),
-    path3 = (r2)--(:PhysicalEntity)
-RETURN path, path2, path3
-```
+// == Assumptions
+//
+// === Assumption 1 (quasi-equilibrium of E and ES)
+//
+// Michaelis and Menten [5] considered a quasi-equilibrium between the free enzyme
+// and the enzyme–substrate complex, meaning that the reversible conversion of $E$
+// and $S$ to $"ES"$ is much faster than the decomposition of $"ES"$ into $E$ and
+// $P$, or in terms of the kinetic constants, that is,
+//
+// $k_1, k_(-1) >> k_2$
+//
+// - (possibile assunzione "quasi-equilibrium" di enzima-libero e complesso) // TODO:
+// enzima-specie "la reazione regolata da un enzima, che produce il complesso
+// "enzima - specie" è molto più lenta della reazione che prende il complesso e ci
+// fa cose!"
+//
+// === Assumption 2 (concentration of ES is constant)
+//
+// This works only if $S(t = 0) >> E$ (because the turnover rate of $E$ is kinda
+// big, thus $(dif"ES") / (dif t) = 0$
+
+
+// == Stuff
+//
+// 1. Draw a wiring diagram of all steps to consider (e.g., Eq. (4.11)). It
+//     contains all substrates and products ($S$ and $P$) and $n$ free or bound
+//     enzyme species
+// ($E$ and $"ES"$).
+// 2. The right sides of the ODEs for the concentrations changes sum up the rates
+//     of all steps leading to or away from a certain substance (e.g., Eqs.
+//     (4.12)–(4.15)). The rates follow mass action kinetics (Eq. (4.3)).
+// // OK! So basically, I have the normal rates of the kinetics
+// 3. The sum of all enzyme-containing species is equal to the total enzyme
+//     concentration $E_"total"$ (the right side of all differential equations for
+//     enzyme species sums up to zero). This constitutes one equation (ok, but what
+//     if enzymes are produced?)
+//
+// 4. The assumption of quasi-steady state for $n - 1$ enzyme species (i.e.,
+//     setting the right sides of the respective ODEs equal to zero) together with
+//     (3) result in $n$ algebraic equations for the concentrations of the $n$
+//     enzyme species.
+//
+// 5. The reaction rate is equal to the rate of product formation (e.g., Eq.
+//     (4.16)). Insert the respective concen­ trations of enzyme species resulting
+//     from (4).
+
+
+// \
+//
+// One enzyme molecule can catalyze thousands of reactions per second (this
+// so-called turn­ over number ranges from 102 to 107 s 1). Enzyme cataly­ sis leads
+// to a rate acceleration of about 106 up to 1012-fold compared to the
+// noncatalyzed, spontaneous reaction.
+//
+// The turnover number (kcat) of an enzyme is the maximum number of substrate
+// molecules one enzyme active site can convert into product per second, indicating
+// its catalytic efficiency, calculated as Vmax (maximum reaction velocity) divided
+// by the total enzyme concentration. It shows how fast an enzyme works, with
+// values ranging from less than one to millions of molecules per second, and is
+// key to understanding how effectively an enzyme processes substrates
+//
+// $10^2 "to" 10^7 "reactions"/s$
+//
+// Chemical and biochemical kinetics rely on the assumption that the reaction rate
+// v at a certain point in time and space can be expressed as a unique function of
+// the concentrations of all substances at this point in time and space.
+//
+// Classical enzyme kinetics assumes for sake of simplicity a spatial homogeneity
+// (the “well-stirred” test tube) and no direct dependency of the rate on time:
+//
+// *time-invariant* system
+//
+// concentration: always based on a volume
+// - $n / V space "quantity" / "litre"$
+
+
+// \
+//
+// $
+//     S -> P
+// $
+//
+// $
+//     limits(v)^dot = (k_2 dot.c E dot.c S) / (S + (k_(-1) + k_2) / k_1)
+// $
+//
+// \
+//
+// $
+//     "sia" S_1 + S_2 -> P "una reazione con enzima" E
+// $
+//
+// $
+//     limits(v)^dot = (k_2 dot.c [E] dot.c [S_1 dot.c S_2]) / ([S_1 dot.c S_2] + (k_(-1) + k_2) / k_1)
+// $
+//
+// #align(center)[ dove $[S]$ è la concentrazione della species S]
+
+// - $E_"modifier" = E_("enzyme") union E_("inhibitor")$
+
+// - $nu : S times R times {"reactant", "product"} -> NN_1$ is the
+//     stoichiometry function
+
+// TODO: what if the reaction is not reversible
+// TODO: mass-action -> power-law (generalization of mass action, why is it a generalization? how does it work?)
+// TODO: how many species are involved in a reaction on average? This can determine how the law scales
+// https://pmc.ncbi.nlm.nih.gov/articles/PMC1781438/
+
+// \
+
+// #line(stroke: .1pt, length: 100%)
+
+// \
+
+// === Kinetics
+
+// #align(center, box(width: auto)[
+//     $
+//         v = E_"total" dot.c
+//         // (
+//         product_((s, r) in E_"enzyme") s^(n^s_r) / (K^s_r + s^(n^s_r))
+//         product_((s, r) in E_"inhibitor") K^s_r / (K^s_r + s^(n^s_r))
+//         // f_"reg"
+//         // )
+//         dot.c
+//         (
+//         k^"for"_"cat" limits(product)_((s, r) in E_"reactant") (s / K_(m, s))^(nu_"reactant" (s, r))
+//         - k^"back"_"cat" limits(product)_((s, r) in E_"product") (s / K_(m, s))^(nu_"product" (s, r))
+//         ) /
+//         D
+//     $
+// ])
+
+// product_i (1 + sum_(a = 1)^i (S_i / K_(m, S_i))^a)
+// + product_j (1 + sum_(a = 1)^j (P_j / K_(m, P_j))^a)
+// - 1
+
+// k^"for"_"cat" product_i (S_i / K_(m, S_i))^(n_(-i))
+// - k^"back"_"cat" product_j (P_j / K_(m, P_j))^(n_j)
+
+// X, D, C
+
+
+// Approximation: An "irreversible" reaction in biological networks is often modeled as a very fast forward reaction with a negligible reverse rate constant, which fits within the convenience kinetics framework by making the product release term dominant or the reverse rate effectively zero.
+
+// Focus on Flux: By emphasizing the saturation curve and steady-state behaviour (like quasi-steady-state), it captures how enzyme activity changes with substrate concentration, mimicking unidirectional flow in metabolic pathways.
+
+// TODO: compute how many constants does a specific model have
+
+// TODO: is there a species which is both inhibitor and enzyme in the same reaction?
+// TODO: does cineca slurm support slurm rest api? Nah, it doesnt, it must enable job submission from node
+
+
+// "modifier"^+
+
+// - $nu : E_r -> NN_+$
+// - $nu : E_p -> NN_+$
+// - $nu : E_r union E_p -> NN_1$ is the *stoichiometry* of the reactants of
+//     products of the reaction
+
+// is the set of relationship types between species and reactions
+// , with $T$ the relationship type
+
+
+// TODO: maybe time horizon >= 0
+// TODO: what other constraints do I have to handle?
+// - I handle the 0 <= s <= 1
+// - I handle the modifiers concentrations
+// - I handle the the transitory
+// - TODO: I have to handle the mythical "target values" or something ("aderenza" baby)
+// #pagebreak()
+
+// TODO: not exists reaction1 s.t (reaction1)-[:reverseReaction]->(reaction)
